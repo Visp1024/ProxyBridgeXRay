@@ -44,15 +44,15 @@ jobs:
       shell: pwsh
 
     - name: Install NSIS
-      run: choco install nsis -y
+      run: choco install nsis -y --no-progress
       shell: pwsh
 
     - name: Install NSIS EnVar plugin
       run: |
-        $pluginDir = "C:\Program Files (x86)\NSIS\Plugins\x86-unicode"
         Invoke-WebRequest -Uri "https://nsis.sourceforge.io/mediawiki/images/7/7f/EnVar_plugin.zip" -OutFile "EnVar.zip"
         Expand-Archive -Path "EnVar.zip" -DestinationPath "EnVar"
-        Copy-Item "EnVar\Plugins\x86-unicode\EnVar.dll" -Destination $pluginDir -Force
+        Copy-Item "EnVar\Plugins\x86-unicode\EnVar.dll" `
+          -Destination "C:\Program Files (x86)\NSIS\Plugins\x86-unicode\" -Force
       shell: pwsh
 
     - name: Compile native DLL
@@ -66,10 +66,12 @@ jobs:
                "-L`"$WinDivertPath\x64`" " +
                "-lWinDivert -lws2_32 -liphlpapi " +
                "-o output\ProxyBridgeCore.dll"
+        Write-Host "Running: $cmd"
         cmd /c $cmd
-        if ($LASTEXITCODE -ne 0) { exit 1 }
+        if ($LASTEXITCODE -ne 0) { Write-Error "GCC failed"; exit 1 }
         Copy-Item "$WinDivertPath\x64\WinDivert.dll"   output\ -Force
         Copy-Item "$WinDivertPath\x64\WinDivert64.sys" output\ -Force
+        Write-Host "Native DLL built successfully"
       shell: pwsh
 
     - name: Publish GUI
@@ -81,19 +83,23 @@ jobs:
           /p:DebugType=None `
           /p:DebugSymbols=false `
           -o gui/publish
+        if ($LASTEXITCODE -ne 0) { Write-Error "dotnet publish failed"; exit 1 }
         Copy-Item gui/publish/ProxyBridge.exe output\ -Force
         Get-ChildItem gui/publish/*.dll | Copy-Item -Destination output\ -Force
+        Write-Host "GUI published. Output contents:"
+        Get-ChildItem output\ | ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length/1MB,2)) MB)" }
       shell: pwsh
 
     - name: Determine version
       id: version
       run: |
-        $tag = if ($env:GITHUB_REF_NAME -and $env:GITHUB_REF_NAME -ne 'master') {
-          $env:GITHUB_REF_NAME
-        } else {
+        $tag = if ("${{ github.event_name }}" -eq "workflow_dispatch") {
           "${{ github.event.inputs.tag }}"
+        } else {
+          "${{ github.ref_name }}"
         }
         $ver = $tag -replace '^v', ''
+        Write-Host "Tag: $tag  Version: $ver"
         echo "tag=$tag" >> $env:GITHUB_OUTPUT
         echo "ver=$ver" >> $env:GITHUB_OUTPUT
       shell: pwsh
@@ -102,9 +108,14 @@ jobs:
       working-directory: Windows/installer
       run: |
         $ver = "${{ steps.version.outputs.ver }}"
-        & "C:\Program Files (x86)\NSIS\Bin\makensis.exe" /DPRODUCT_VERSION=$ver ProxyBridge.nsi
-        if ($LASTEXITCODE -ne 0) { exit 1 }
-        Move-Item "ProxyBridge-XRay-Setup-$ver.exe" "..\output\" -Force
+        $nsisExe = "C:\Program Files (x86)\NSIS\Bin\makensis.exe"
+        Write-Host "Building NSIS installer v$ver..."
+        & $nsisExe /V4 /DPRODUCT_VERSION=$ver ProxyBridge.nsi
+        if ($LASTEXITCODE -ne 0) { Write-Error "NSIS build failed"; exit 1 }
+        $installer = "ProxyBridge-XRay-Setup-$ver.exe"
+        if (-not (Test-Path $installer)) { Write-Error "Installer not found: $installer"; exit 1 }
+        Move-Item $installer "..\output\" -Force
+        Write-Host "Installer created: $installer"
       shell: pwsh
 
     - name: Package portable ZIP
@@ -112,19 +123,26 @@ jobs:
       run: |
         $tag = "${{ steps.version.outputs.tag }}"
         $zipName = "ProxyBridge-XRay-$tag-win-x64-portable.zip"
-        # Zip everything except the installer itself
         $files = Get-ChildItem output\* | Where-Object { $_.Name -notlike "*Setup*" }
-        Compress-Archive -Path $files.FullName -DestinationPath $zipName -Force
-        Write-Host "Created: $zipName"
+        Compress-Archive -Path ($files | Select-Object -ExpandProperty FullName) -DestinationPath $zipName -Force
+        Write-Host "Portable ZIP: $zipName ($([math]::Round((Get-Item $zipName).Length/1MB,2)) MB)"
+      shell: pwsh
+
+    - name: List release artifacts
+      working-directory: Windows
+      run: |
+        Write-Host "=== Release artifacts ==="
+        Get-ChildItem output\*Setup*.exe, ProxyBridge-XRay-*-portable.zip -ErrorAction SilentlyContinue |
+          ForEach-Object { Write-Host "  $($_.Name) ($([math]::Round($_.Length/1MB,2)) MB)" }
       shell: pwsh
 
     - name: Upload to release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ steps.version.outputs.tag }}
         files: |
           Windows/output/ProxyBridge-XRay-Setup-*.exe
           Windows/ProxyBridge-XRay-*-portable.zip
-        tag_name: ${{ steps.version.outputs.tag }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
