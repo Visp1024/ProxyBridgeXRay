@@ -27,8 +27,7 @@ public class App : Application
 
             if (StartMinimized)
             {
-                desktop.MainWindow.WindowState = WindowState.Minimized;
-                desktop.MainWindow.ShowInTaskbar = false;
+                desktop.MainWindow.Opened += (s, e) => ((Window)s!).Hide();
             }
 
             try
