@@ -16,42 +16,77 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
 
 ---
 
-## Features / Возможности
+## Features
 
-### Routing / Маршрутизация
-- **Process-based routing** — route, block, or allow traffic per application / маршрутизация трафика на уровне процессов
-- **SOCKS5 & HTTP proxy support** / поддержка SOCKS5 и HTTP прокси
-- **Kernel-level interception** via WinDivert / перехват на уровне ядра через WinDivert
-- **Rules engine** — per-process, per-host, per-port, TCP/UDP, wildcards / гибкие правила маршрутизации
-- **DNS via proxy** / DNS через прокси
-- **Independent start/stop** for routing and XRay modules / независимый запуск/остановка маршрутизации и XRay
+### Routing
+- **Process-based routing** — route, block, or allow traffic per application
+- **SOCKS5 & HTTP proxy support**
+- **Kernel-level interception** via WinDivert
+- **Rules engine** — per-process, per-host, per-port, TCP/UDP, wildcards
+- **DNS via proxy**
+- **Independent start/stop** for routing and XRay modules
 
-### XRay Reality / XRay Reality
-- **Start/stop xray-core** from the GUI without leaving the app / запуск/остановка xray-core прямо из интерфейса
-- **VLESS+REALITY** protocol with SOCKS5 + HTTP inbounds / протокол VLESS+REALITY с SOCKS5 и HTTP inbound
-- **Import from `vless://` URL** — paste a share link to auto-fill all settings / импорт из ссылки `vless://`
-- **Auto-download xray-core** — if the binary is not found, the app offers to download it from GitHub Releases / автоматическая загрузка xray-core при отсутствии бинарного файла
-- **Auto-start on launch** — configurable independently for routing and XRay / автозапуск при старте — настраивается отдельно для маршрутизации и XRay
-- **Binary auto-detection**: configured path → PATH → app directory / автопоиск бинарного файла
+### XRay Reality
+- **Start/stop xray-core** from the GUI without leaving the app
+- **VLESS+REALITY** protocol with SOCKS5 + HTTP inbounds
+- **Import from `vless://` URL** — paste a share link to auto-fill all settings
+- **Auto-download xray-core** — if the binary is not found, the app offers to download it from GitHub Releases
+- **Auto-start on launch** — configurable independently for routing and XRay
+- **Binary auto-detection**: configured path → PATH → app directory
 
-### Interface / Интерфейс
-- Modern dark Avalonia UI (.NET 10) / современный тёмный интерфейс на Avalonia (.NET 10)
-- **English / Russian** localization / локализация на английском и русском
-- Status bar with dual indicators for routing and XRay / статус-бар с индикаторами для маршрутизации и XRay
-- Traffic and activity log / журнал трафика и активности
-
----
-
-## Requirements / Требования
-
-- **OS**: Windows 10 or later (64-bit) / Windows 10 и новее (64-bit)
-- **Privileges**: Administrator / права администратора
-- **.NET**: bundled — no separate installation required / входит в сборку, отдельная установка не нужна
-- **XRay**: downloaded automatically or provide your own `xray.exe` / скачивается автоматически или укажите свой `xray.exe`
+### Interface
+- Modern dark Avalonia UI (.NET 10)
+- **English / Russian** localization
+- Status bar with dual indicators for routing and XRay
+- Traffic and activity log
 
 ---
 
-## Getting Started / Начало работы
+## Возможности
+
+### Маршрутизация
+- **Маршрутизация на уровне процессов** — route, block или allow для каждого приложения
+- **Поддержка SOCKS5 и HTTP прокси**
+- **Перехват на уровне ядра** через WinDivert
+- **Система правил** — по процессу, хосту, порту, протоколу TCP/UDP, с поддержкой wildcard
+- **DNS через прокси**
+- **Независимый запуск/остановка** маршрутизации и XRay
+
+### XRay Reality
+- **Запуск/остановка xray-core** прямо из интерфейса
+- Протокол **VLESS+REALITY** с SOCKS5 и HTTP inbound
+- **Импорт из ссылки `vless://`** — вставьте share-ссылку для автозаполнения настроек
+- **Автоматическая загрузка xray-core** — если бинарный файл не найден, приложение предложит скачать его с GitHub Releases
+- **Автозапуск при старте** — настраивается отдельно для маршрутизации и XRay
+- **Автопоиск бинарного файла**: заданный путь → PATH → директория приложения
+
+### Интерфейс
+- Современный тёмный интерфейс на Avalonia UI (.NET 10)
+- Локализация на **английском и русском**
+- Статус-бар с индикаторами состояния маршрутизации и XRay
+- Журнал трафика и активности
+
+---
+
+## Requirements
+
+- **OS**: Windows 10 or later (64-bit)
+- **Privileges**: Administrator
+- **.NET**: bundled — no separate installation required
+- **XRay**: downloaded automatically or provide your own `xray.exe`
+
+---
+
+## Требования
+
+- **ОС**: Windows 10 и новее (64-bit)
+- **Права**: администратор
+- **.NET**: входит в сборку, отдельная установка не нужна
+- **XRay**: скачивается автоматически или укажите свой `xray.exe`
+
+---
+
+## Getting Started
 
 1. Download the latest release from [Releases](https://github.com/Visp1024/ProxyBridgeXRay/releases) and run `ProxyBridge.exe` as Administrator.
 2. Open **Proxy → XRay Reality Settings** and paste your `vless://` link into the Import field, or fill in the fields manually.
@@ -60,6 +95,8 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
 
 ---
 
+## Начало работы
+
 1. Скачайте последний релиз из [Releases](https://github.com/Visp1024/ProxyBridgeXRay/releases) и запустите `ProxyBridge.exe` от имени администратора.
 2. Откройте **Proxy → XRay Reality Settings** и вставьте ссылку `vless://` в поле импорта, или заполните поля вручную.
 3. Нажмите **Start XRay** в меню Proxy. ProxyBridge автоматически начнёт маршрутизировать трафик через локальный SOCKS5 порт XRay.
@@ -67,35 +104,35 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
 
 ---
 
-## Screenshots / Скриншоты
+## Screenshots
 
 <p align="center">
   <img src="img/ProxyBridge.png" alt="ProxyBridge Windows Main Interface" width="800"/>
   <br/>
-  <em>Main Interface / Главный интерфейс</em>
+  <em>Main Interface</em>
 </p>
 
 <p align="center">
   <img src="img/proxy-setting.png" alt="Proxy Settings" width="800"/>
   <br/>
-  <em>Proxy Settings / Настройки прокси</em>
+  <em>Proxy Settings</em>
 </p>
 
 <p align="center">
   <img src="img/proxy-rule.png" alt="Proxy Rules" width="800"/>
   <br/>
-  <em>Proxy Rules / Правила маршрутизации</em>
+  <em>Proxy Rules</em>
 </p>
 
 ---
 
-## License / Лицензия
+## License
 
 MIT License — see [LICENSE](LICENSE) for details.
 
 ---
 
-## Credits / Благодарности
+## Credits
 
 - [WinDivert](https://reqrypt.org/windivert.html) by basil00 — kernel-level packet interception
 - [Avalonia UI](https://avaloniaui.net/) — cross-platform .NET UI framework
