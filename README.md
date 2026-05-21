@@ -4,6 +4,12 @@
   <img src="img/logo.png?raw=true" alt="ProxyBridge Logo" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/Visp1024/ProxyBridgeXRay/releases/latest">
+    <img src="https://img.shields.io/github/v/release/Visp1024/ProxyBridgeXRay?label=Download&style=for-the-badge&logo=windows&color=0078d4" alt="Download latest release"/>
+  </a>
+</p>
+
 **ProxyBridge** is a lightweight, open-source Windows proxy client (Proxifier alternative) that transparently routes TCP and UDP traffic from specific applications through SOCKS5 or HTTP proxies — with built-in support for **XRay VLESS+REALITY** tunneling.
 
 This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge) Windows GUI with a full XRay Reality integration: manage the xray-core subprocess directly from the UI, import server configs via `vless://` share links, and auto-connect on application launch.
