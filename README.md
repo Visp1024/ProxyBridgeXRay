@@ -124,6 +124,18 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
   <em>Proxy Rules</em>
 </p>
 
+<p align="center">
+  <img src="img/proxy-rule2.png" alt="Add Rule" width="800"/>
+  <br/>
+  <em>Add Rule</em>
+</p>
+
+<p align="center">
+  <img src="img/Vless settings.png" alt="XRay VLESS+Reality Settings" width="800"/>
+  <br/>
+  <em>XRay VLESS+Reality Settings</em>
+</p>
+
 ---
 
 ## License
