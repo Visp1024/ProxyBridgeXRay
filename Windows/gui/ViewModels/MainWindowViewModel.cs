@@ -669,6 +669,7 @@ public class MainWindowViewModel : ViewModelBase
                 {
                     _xRayConfig = cfg;
                     SaveConfigurationInternal();
+                    OnPropertyChanged(nameof(IsAutoStartXRayEnabled));
                     window.Close();
                 },
                 onCancel: () => window.Close()

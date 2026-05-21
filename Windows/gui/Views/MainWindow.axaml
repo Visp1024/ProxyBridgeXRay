@@ -212,14 +212,6 @@
                     <MenuItem Header="{Binding Loc.MenuStopRouting}"
                               Command="{Binding StopRoutingCommand}"
                               IsVisible="{Binding IsRoutingRunning}"/>
-                    <MenuItem Header="{Binding Loc.MenuAutoStartRouting}"
-                              Command="{Binding ToggleAutoStartRoutingCommand}">
-                        <MenuItem.Icon>
-                            <CheckBox IsChecked="{Binding AutoStartRouting}"
-                                      IsHitTestVisible="False"
-                                      Margin="0"/>
-                        </MenuItem.Icon>
-                    </MenuItem>
                     <Separator/>
                     <!-- XRay -->
                     <MenuItem Header="{Binding Loc.MenuXRaySettings}" Command="{Binding ShowXRaySettingsCommand}"/>
@@ -229,14 +221,6 @@
                     <MenuItem Header="{Binding Loc.MenuStopXRay}"
                               Command="{Binding StopXRayCommand}"
                               IsVisible="{Binding IsXRayRunning}"/>
-                    <MenuItem Header="{Binding Loc.MenuAutoStartXRay}"
-                              Command="{Binding ToggleAutoStartXRayCommand}">
-                        <MenuItem.Icon>
-                            <CheckBox IsChecked="{Binding IsAutoStartXRayEnabled}"
-                                      IsHitTestVisible="False"
-                                      Margin="0"/>
-                        </MenuItem.Icon>
-                    </MenuItem>
                     <Separator/>
                     <MenuItem Header="{Binding Loc.MenuEnableTrafficLogging}"
                               Command="{Binding ToggleTrafficLoggingCommand}">
@@ -276,6 +260,22 @@
                               Command="{Binding ToggleStartWithWindowsCommand}">
                         <MenuItem.Icon>
                             <CheckBox IsChecked="{Binding StartWithWindows}"
+                                      IsHitTestVisible="False"
+                                      Margin="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="{Binding Loc.MenuAutoStartRouting}"
+                              Command="{Binding ToggleAutoStartRoutingCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding AutoStartRouting}"
+                                      IsHitTestVisible="False"
+                                      Margin="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <MenuItem Header="{Binding Loc.MenuAutoStartXRay}"
+                              Command="{Binding ToggleAutoStartXRayCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding IsAutoStartXRayEnabled}"
                                       IsHitTestVisible="False"
                                       Margin="0"/>
                         </MenuItem.Icon>
