@@ -4,50 +4,96 @@ on:
   release:
     types: [published, created]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag (e.g. v1.0.0)'
+        required: true
+        default: 'v1.0.0'
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
-    runs-on: self-hosted
-    if: github.event_name == 'release' || (github.event_name == 'workflow_dispatch' && github.actor == github.repository_owner)
+    runs-on: windows-latest
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Verify WinDivert installation
-      run: |
-        if (Test-Path "C:\WinDivert-2.2.2-A") {
-          Write-Host "WinDivert found at C:\WinDivert-2.2.2-A"
-        } else {
-          Write-Error "WinDivert not found. Please install WinDivert 2.2.2-A at C:\WinDivert-2.2.2-A"
-          exit 1
-        }
-      shell: pwsh
-
-    - name: Build and sign project
-      run: .\Windows\compile.ps1
-      shell: pwsh
-
-    - name: List built files
-      run: |
-        Write-Host "`nBuild artifacts:"
-        Get-ChildItem Windows/output -Recurse | ForEach-Object {
-          $size = [math]::Round($_.Length/1MB, 2)
-          Write-Host "  $($_.Name) - $size MB"
-        }
-      shell: pwsh
-
-    - name: Upload installer to release
-      uses: softprops/action-gh-release@v1
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
       with:
-        files: Windows/output/ProxyBridge-Setup-*.exe
+        dotnet-version: '10.0.x'
+
+    - name: Setup MSYS2 (GCC)
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: mingw-w64-x86_64-gcc mingw-w64-x86_64-toolchain
+
+    - name: Add MSYS2 to PATH
+      run: echo "C:\msys64\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      shell: pwsh
+
+    - name: Download WinDivert
+      run: |
+        Invoke-WebRequest -Uri "https://github.com/basil00/Divert/releases/download/v2.2.2/WinDivert-2.2.2-A.zip" -OutFile "WinDivert.zip"
+        Expand-Archive -Path "WinDivert.zip" -DestinationPath "C:\"
+      shell: pwsh
+
+    - name: Compile native DLL
+      working-directory: Windows
+      run: |
+        $WinDivertPath = "C:\WinDivert-2.2.2-A"
+        New-Item -ItemType Directory -Path output -Force | Out-Null
+        $cmd = "gcc -shared -O2 -flto -s -Wall -D_WIN32_WINNT=0x0601 -DPROXYBRIDGE_EXPORTS " +
+               "-I`"$WinDivertPath\include`" " +
+               "src\ProxyBridge.c " +
+               "-L`"$WinDivertPath\x64`" " +
+               "-lWinDivert -lws2_32 -liphlpapi " +
+               "-o output\ProxyBridgeCore.dll"
+        cmd /c $cmd
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        Copy-Item "$WinDivertPath\x64\WinDivert.dll"   output\ -Force
+        Copy-Item "$WinDivertPath\x64\WinDivert64.sys" output\ -Force
+      shell: pwsh
+
+    - name: Publish GUI
+      working-directory: Windows
+      run: |
+        dotnet publish gui/ProxyBridge.GUI.csproj -c Release -r win-x64 --self-contained `
+          /p:PublishTrimmed=true `
+          /p:PublishSingleFile=false `
+          /p:DebugType=None `
+          /p:DebugSymbols=false `
+          -o gui/publish
+        Copy-Item gui/publish/ProxyBridge.exe output\ -Force
+        Get-ChildItem gui/publish/*.dll | Copy-Item -Destination output\ -Force
+      shell: pwsh
+
+    - name: Package ZIP
+      working-directory: Windows
+      run: |
+        $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "${{ github.event.inputs.tag }}" }
+        $zipName = "ProxyBridge-XRay-$tag-win-x64.zip"
+        Compress-Archive -Path output\* -DestinationPath $zipName -Force
+        Write-Host "Created: $zipName"
+        Get-ChildItem $zipName | Select-Object Name, @{N='Size MB';E={[math]::Round($_.Length/1MB,2)}}
+      shell: pwsh
+
+    - name: Upload to release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: Windows/ProxyBridge-XRay-*-win-x64.zip
+        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ProxyBridge-Release-${{ github.event.release.tag_name }}
+        name: ProxyBridge-XRay-${{ github.event.inputs.tag || github.ref_name }}-win-x64
         path: Windows/output/
-        retention-days: 90
+        retention-days: 30
