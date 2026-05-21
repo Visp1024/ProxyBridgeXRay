@@ -1,21 +1,24 @@
+!ifndef PRODUCT_VERSION
+  !define PRODUCT_VERSION "1.0.0"
+!endif
+
 !define PRODUCT_NAME "ProxyBridge"
-!define PRODUCT_VERSION "3.2.0"
-!define PRODUCT_PUBLISHER "InterceptSuite"
-!define PRODUCT_WEB_SITE "https://github.com/InterceptSuite/ProxyBridge"
+!define PRODUCT_PUBLISHER "Visp1024"
+!define PRODUCT_WEB_SITE "https://github.com/Visp1024/ProxyBridgeXRay"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
 !define PRODUCT_UNINST_ROOT_KEY "HKLM"
 
 Unicode True
 
 ; Version Information
-VIProductVersion "3.2.0.0"
+VIProductVersion "${PRODUCT_VERSION}.0"
 VIAddVersionKey "ProductName" "${PRODUCT_NAME}"
 VIAddVersionKey "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey "LegalCopyright" "Copyright (c) 2026 ${PRODUCT_PUBLISHER}"
 VIAddVersionKey "FileDescription" "${PRODUCT_NAME} Setup"
 VIAddVersionKey "FileVersion" "${PRODUCT_VERSION}"
-VIAddVersionKey "Comments" "Network Proxy Bridge Application"
+VIAddVersionKey "Comments" "ProxyBridge with XRay Reality support"
 
 !include "MUI2.nsh"
 
@@ -23,7 +26,7 @@ SetCompressor /SOLID lzma
 SetCompressorDictSize 64
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
-OutFile "ProxyBridge-Setup-${PRODUCT_VERSION}.exe"
+OutFile "ProxyBridge-XRay-Setup-${PRODUCT_VERSION}.exe"
 InstallDir "$PROGRAMFILES64\${PRODUCT_NAME}"
 InstallDirRegKey HKLM "${PRODUCT_UNINST_KEY}" "InstallLocation"
 RequestExecutionLevel admin
@@ -47,25 +50,17 @@ Section "MainSection" SEC01
   SetOutPath "$INSTDIR"
   SetOverwrite on
 
-  File "..\output\ProxyBridge.exe"
-  File "..\output\ProxyBridge_CLI.exe"
-  File "..\output\ProxyBridgeCore.dll"
-  File "..\output\WinDivert.dll"
-  File "..\output\WinDivert64.sys"
-  File "..\output\av_libglesv2.dll"
-  File "..\output\libHarfBuzzSharp.dll"
-  File "..\output\libSkiaSharp.dll"
+  ; All build artifacts (exe, dlls, sys drivers)
+  File /r "..\output\*.*"
 
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
   CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ProxyBridge.exe"
   CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ProxyBridge.exe"
 
-  ; Add to PATH using EnVar plugin
   EnVar::SetHKLM
   EnVar::AddValue "PATH" "$INSTDIR"
   Pop $0
 
-  ; Broadcast environment change
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 SectionEnd
 
@@ -81,27 +76,16 @@ Section -Post
 SectionEnd
 
 Section Uninstall
-  Delete "$INSTDIR\ProxyBridge.exe"
-  Delete "$INSTDIR\ProxyBridge_CLI.exe"
-  Delete "$INSTDIR\ProxyBridgeCore.dll"
-  Delete "$INSTDIR\WinDivert.dll"
-  Delete "$INSTDIR\WinDivert64.sys"
-  Delete "$INSTDIR\av_libglesv2.dll"
-  Delete "$INSTDIR\libHarfBuzzSharp.dll"
-  Delete "$INSTDIR\libSkiaSharp.dll"
-  Delete "$INSTDIR\uninst.exe"
+  RMDir /r "$INSTDIR"
 
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"
   Delete "$DESKTOP\${PRODUCT_NAME}.lnk"
   RMDir "$SMPROGRAMS\${PRODUCT_NAME}"
-  RMDir "$INSTDIR"
 
-  ; Remove from PATH using EnVar plugin
   EnVar::SetHKLM
   EnVar::DeleteValue "PATH" "$INSTDIR"
   Pop $0
 
-  ; Broadcast environment change
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"

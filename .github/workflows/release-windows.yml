@@ -43,6 +43,18 @@ jobs:
         Expand-Archive -Path "WinDivert.zip" -DestinationPath "C:\"
       shell: pwsh
 
+    - name: Install NSIS
+      run: choco install nsis -y
+      shell: pwsh
+
+    - name: Install NSIS EnVar plugin
+      run: |
+        $pluginDir = "C:\Program Files (x86)\NSIS\Plugins\x86-unicode"
+        Invoke-WebRequest -Uri "https://nsis.sourceforge.io/mediawiki/images/7/7f/EnVar_plugin.zip" -OutFile "EnVar.zip"
+        Expand-Archive -Path "EnVar.zip" -DestinationPath "EnVar"
+        Copy-Item "EnVar\Plugins\x86-unicode\EnVar.dll" -Destination $pluginDir -Force
+      shell: pwsh
+
     - name: Compile native DLL
       working-directory: Windows
       run: |
@@ -73,27 +85,52 @@ jobs:
         Get-ChildItem gui/publish/*.dll | Copy-Item -Destination output\ -Force
       shell: pwsh
 
-    - name: Package ZIP
+    - name: Determine version
+      id: version
+      run: |
+        $tag = if ($env:GITHUB_REF_NAME -and $env:GITHUB_REF_NAME -ne 'master') {
+          $env:GITHUB_REF_NAME
+        } else {
+          "${{ github.event.inputs.tag }}"
+        }
+        $ver = $tag -replace '^v', ''
+        echo "tag=$tag" >> $env:GITHUB_OUTPUT
+        echo "ver=$ver" >> $env:GITHUB_OUTPUT
+      shell: pwsh
+
+    - name: Build installer
+      working-directory: Windows/installer
+      run: |
+        $ver = "${{ steps.version.outputs.ver }}"
+        & "C:\Program Files (x86)\NSIS\Bin\makensis.exe" /DPRODUCT_VERSION=$ver ProxyBridge.nsi
+        if ($LASTEXITCODE -ne 0) { exit 1 }
+        Move-Item "ProxyBridge-XRay-Setup-$ver.exe" "..\output\" -Force
+      shell: pwsh
+
+    - name: Package portable ZIP
       working-directory: Windows
       run: |
-        $tag = if ($env:GITHUB_REF_NAME) { $env:GITHUB_REF_NAME } else { "${{ github.event.inputs.tag }}" }
-        $zipName = "ProxyBridge-XRay-$tag-win-x64.zip"
-        Compress-Archive -Path output\* -DestinationPath $zipName -Force
+        $tag = "${{ steps.version.outputs.tag }}"
+        $zipName = "ProxyBridge-XRay-$tag-win-x64-portable.zip"
+        # Zip everything except the installer itself
+        $files = Get-ChildItem output\* | Where-Object { $_.Name -notlike "*Setup*" }
+        Compress-Archive -Path $files.FullName -DestinationPath $zipName -Force
         Write-Host "Created: $zipName"
-        Get-ChildItem $zipName | Select-Object Name, @{N='Size MB';E={[math]::Round($_.Length/1MB,2)}}
       shell: pwsh
 
     - name: Upload to release
       uses: softprops/action-gh-release@v2
       with:
-        files: Windows/ProxyBridge-XRay-*-win-x64.zip
-        tag_name: ${{ github.event.inputs.tag || github.ref_name }}
+        files: |
+          Windows/output/ProxyBridge-XRay-Setup-*.exe
+          Windows/ProxyBridge-XRay-*-portable.zip
+        tag_name: ${{ steps.version.outputs.tag }}
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ProxyBridge-XRay-${{ github.event.inputs.tag || github.ref_name }}-win-x64
+        name: ProxyBridge-XRay-${{ steps.version.outputs.tag }}-win-x64
         path: Windows/output/
         retention-days: 30
