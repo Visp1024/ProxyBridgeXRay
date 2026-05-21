@@ -1,7 +1,7 @@
 # ProxyBridge + XRay Reality — Windows GUI
 
 <p align="center">
-  <img src="img/logo.png" alt="ProxyBridge Logo" />
+  <img src="img/logo.png?raw=true" alt="ProxyBridge Logo" />
 </p>
 
 **ProxyBridge** is a lightweight, open-source Windows proxy client (Proxifier alternative) that transparently routes TCP and UDP traffic from specific applications through SOCKS5 or HTTP proxies — with built-in support for **XRay VLESS+REALITY** tunneling.
