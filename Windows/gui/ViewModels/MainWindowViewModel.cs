@@ -989,7 +989,7 @@ public class MainWindowViewModel : ViewModelBase
                 RussianCheckmark = config.Language == "ru" ? "✓" : "";
             }
 
-            _autoStartRouting = config.AutoStartRouting;
+            AutoStartRouting = config.AutoStartRouting;
 
             if (config.XRay != null)
                 _xRayConfig = config.XRay;
