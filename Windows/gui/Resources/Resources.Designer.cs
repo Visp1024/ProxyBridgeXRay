@@ -442,5 +442,55 @@ namespace ProxyBridge.GUI.Resources {
         internal static string ActionDirect => ResourceManager.GetString("ActionDirect", resourceCulture);
         internal static string ActionBlock => ResourceManager.GetString("ActionBlock", resourceCulture);
         internal static string ButtonSaveRule => ResourceManager.GetString("ButtonSaveRule", resourceCulture);
+
+        // Routing Menu
+        internal static string MenuStartRouting => ResourceManager.GetString("MenuStartRouting", resourceCulture);
+        internal static string MenuStopRouting => ResourceManager.GetString("MenuStopRouting", resourceCulture);
+        internal static string MenuAutoStartRouting => ResourceManager.GetString("MenuAutoStartRouting", resourceCulture);
+
+        // XRay Menu
+        internal static string MenuXRaySettings => ResourceManager.GetString("MenuXRaySettings", resourceCulture);
+        internal static string MenuStartXRay => ResourceManager.GetString("MenuStartXRay", resourceCulture);
+        internal static string MenuStopXRay => ResourceManager.GetString("MenuStopXRay", resourceCulture);
+        internal static string MenuAutoStartXRay => ResourceManager.GetString("MenuAutoStartXRay", resourceCulture);
+
+        // XRay Settings Window
+        internal static string WindowXRaySettings => ResourceManager.GetString("WindowXRaySettings", resourceCulture);
+        internal static string XRaySubtitle => ResourceManager.GetString("XRaySubtitle", resourceCulture);
+        internal static string ButtonSaveSettings => ResourceManager.GetString("ButtonSaveSettings", resourceCulture);
+        internal static string XRaySectionImport => ResourceManager.GetString("XRaySectionImport", resourceCulture);
+        internal static string XRayImportHint => ResourceManager.GetString("XRayImportHint", resourceCulture);
+        internal static string ButtonImport => ResourceManager.GetString("ButtonImport", resourceCulture);
+        internal static string XRaySectionServer => ResourceManager.GetString("XRaySectionServer", resourceCulture);
+        internal static string LabelServerAddress => ResourceManager.GetString("LabelServerAddress", resourceCulture);
+        internal static string PlaceholderServerAddress => ResourceManager.GetString("PlaceholderServerAddress", resourceCulture);
+        internal static string XRaySectionAuth => ResourceManager.GetString("XRaySectionAuth", resourceCulture);
+        internal static string LabelFlow => ResourceManager.GetString("LabelFlow", resourceCulture);
+        internal static string XRaySectionReality => ResourceManager.GetString("XRaySectionReality", resourceCulture);
+        internal static string LabelSni => ResourceManager.GetString("LabelSni", resourceCulture);
+        internal static string PlaceholderSni => ResourceManager.GetString("PlaceholderSni", resourceCulture);
+        internal static string XRaySniHint => ResourceManager.GetString("XRaySniHint", resourceCulture);
+        internal static string LabelFingerprint => ResourceManager.GetString("LabelFingerprint", resourceCulture);
+        internal static string LabelPublicKey => ResourceManager.GetString("LabelPublicKey", resourceCulture);
+        internal static string PlaceholderPublicKey => ResourceManager.GetString("PlaceholderPublicKey", resourceCulture);
+        internal static string LabelShortId => ResourceManager.GetString("LabelShortId", resourceCulture);
+        internal static string LabelSpiderX => ResourceManager.GetString("LabelSpiderX", resourceCulture);
+        internal static string PlaceholderOptional => ResourceManager.GetString("PlaceholderOptional", resourceCulture);
+        internal static string XRaySectionInbounds => ResourceManager.GetString("XRaySectionInbounds", resourceCulture);
+        internal static string LabelSocks5Port => ResourceManager.GetString("LabelSocks5Port", resourceCulture);
+        internal static string LabelHttpPort => ResourceManager.GetString("LabelHttpPort", resourceCulture);
+        internal static string XRayInboundsHint => ResourceManager.GetString("XRayInboundsHint", resourceCulture);
+        internal static string XRaySectionBinary => ResourceManager.GetString("XRaySectionBinary", resourceCulture);
+        internal static string LabelXRayPath => ResourceManager.GetString("LabelXRayPath", resourceCulture);
+        internal static string PlaceholderXRayPath => ResourceManager.GetString("PlaceholderXRayPath", resourceCulture);
+        internal static string XRayPathHint => ResourceManager.GetString("XRayPathHint", resourceCulture);
+        internal static string XRaySectionAutoStart => ResourceManager.GetString("XRaySectionAutoStart", resourceCulture);
+        internal static string XRayAutoStartLabel => ResourceManager.GetString("XRayAutoStartLabel", resourceCulture);
+        internal static string XRayAutoStartHint => ResourceManager.GetString("XRayAutoStartHint", resourceCulture);
+
+        // XRay Download Window
+        internal static string XRayDownloadTitle => ResourceManager.GetString("XRayDownloadTitle", resourceCulture);
+        internal static string XRayDownloadSubtitle => ResourceManager.GetString("XRayDownloadSubtitle", resourceCulture);
+        internal static string ButtonRetry => ResourceManager.GetString("ButtonRetry", resourceCulture);
     }
 }

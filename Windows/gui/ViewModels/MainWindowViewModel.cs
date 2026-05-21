@@ -43,6 +43,19 @@ public class MainWindowViewModel : ViewModelBase
     private string _currentProxyUsername = "";
     private string _currentProxyPassword = "";
 
+    private XRayConfig _xRayConfig = new();
+    private readonly Services.XRayService _xRayService = new();
+    private bool _isXRayRunning;
+    private string _xRayStatusText = "XRay: Stopped";
+    private bool _isRoutingRunning;
+    private bool _autoStartRouting = true;
+    // proxy settings saved before XRay started
+    private string _savedProxyType = "SOCKS5";
+    private string _savedProxyIp = "";
+    private string _savedProxyPort = "";
+    private string _savedProxyUsername = "";
+    private string _savedProxyPassword = "";
+
     private readonly List<string> _pendingConnectionLogs = new(128);
     private readonly List<string> _pendingActivityLogs = new(64);
     private readonly object _connectionLogLock = new();
@@ -60,110 +73,49 @@ public class MainWindowViewModel : ViewModelBase
         _isServiceInitialized = true;
         LoadConfiguration();
 
-        try
+        // Start log flush timers (independent of routing service)
+        _connectionLogTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _connectionLogTimer.Tick += (s, e) =>
         {
-            _proxyService = new ProxyBridgeService();
-            _proxyService.LogReceived += (msg) =>
+            List<string> logsToAdd;
+            lock (_connectionLogLock)
             {
-                lock (_activityLogLock)
-                {
-                    _pendingActivityLogs.Add($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
-                }
-            };
-
-            _proxyService.ConnectionReceived += (processName, pid, destIp, destPort, proxyInfo) =>
-            {
-                if (!_isTrafficLoggingEnabled)
-                    return;
-
-                if (_connectionLogTimer?.IsEnabled == false)
-                    _connectionLogTimer.Start();
-
-                string logEntry = $"[{DateTime.Now:HH:mm:ss}] {processName} (PID:{pid}) -> {destIp}:{destPort} via {proxyInfo}\n";
-                lock (_connectionLogLock)
-                {
-                    _pendingConnectionLogs.Add(logEntry);
-                }
-            };
-
-            _connectionLogTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _connectionLogTimer.Tick += (s, e) =>
-            {
-                List<string> logsToAdd;
-                lock (_connectionLogLock)
-                {
-                    if (_pendingConnectionLogs.Count == 0) return;
-                    logsToAdd = new List<string>(_pendingConnectionLogs);
-                    _pendingConnectionLogs.Clear();
-                }
-
-                ConnectionsLog += string.Join("", logsToAdd);
-
-                var lines = ConnectionsLog.Split('\n');
-                if (lines.Length > MAX_CONNECTION_LOG_LINES)
-                {
-                    var linesToKeep = lines.Skip(lines.Length - MAX_CONNECTION_LOG_LINES).ToArray();
-                    ConnectionsLog = string.Join("\n", linesToKeep);
-                }
-            };
-
-            _activityLogTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
-            _activityLogTimer.Tick += (s, e) =>
-            {
-                List<string> logsToAdd;
-                lock (_activityLogLock)
-                {
-                    if (_pendingActivityLogs.Count == 0) return;
-                    logsToAdd = new List<string>(_pendingActivityLogs);
-                    _pendingActivityLogs.Clear();
-                }
-                ActivityLog += string.Join("", logsToAdd);
-            };
-            _activityLogTimer.Start();
-
-            _proxyService.SetDnsViaProxy(_dnsViaProxy);
-            _proxyService.SetLocalhostViaProxy(_localhostViaProxy);
-            if (!string.IsNullOrEmpty(_currentProxyIp) &&
-                !string.IsNullOrEmpty(_currentProxyPort) &&
-                ushort.TryParse(_currentProxyPort, out ushort portNum))
-            {
-                _proxyService.SetProxyConfig(
-                    _currentProxyType,
-                    _currentProxyIp,
-                    portNum,
-                    _currentProxyUsername,
-                    _currentProxyPassword);
+                if (_pendingConnectionLogs.Count == 0) return;
+                logsToAdd = new List<string>(_pendingConnectionLogs);
+                _pendingConnectionLogs.Clear();
             }
 
-            if (_proxyService.Start())
-            {
-                foreach (var rule in ProxyRules)
-                {
-                    uint ruleId = _proxyService.AddRule(
-                        rule.ProcessName,
-                        rule.TargetHosts,
-                        rule.TargetPorts,
-                        rule.Protocol,
-                        rule.Action);
+            ConnectionsLog += string.Join("", logsToAdd);
 
-                    if (ruleId > 0)
-                    {
-                        rule.RuleId = ruleId;
-                        rule.Index = ProxyRules.IndexOf(rule) + 1;
-                    }
-                }
-            }
-            else
+            var lines = ConnectionsLog.Split('\n');
+            if (lines.Length > MAX_CONNECTION_LOG_LINES)
             {
-                QueueActivityLog("ERROR: Failed to start ProxyBridge service");
+                var linesToKeep = lines.Skip(lines.Length - MAX_CONNECTION_LOG_LINES).ToArray();
+                ConnectionsLog = string.Join("\n", linesToKeep);
             }
-        }
-        catch (Exception ex)
+        };
+
+        _activityLogTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        _activityLogTimer.Tick += (s, e) =>
         {
-            QueueActivityLog($"ERROR: {ex.Message}");
-        }
+            List<string> logsToAdd;
+            lock (_activityLogLock)
+            {
+                if (_pendingActivityLogs.Count == 0) return;
+                logsToAdd = new List<string>(_pendingActivityLogs);
+                _pendingActivityLogs.Clear();
+            }
+            ActivityLog += string.Join("", logsToAdd);
+        };
+        _activityLogTimer.Start();
+
+        if (_autoStartRouting)
+            IsRoutingRunning = StartRoutingInternal();
 
         _ = CheckForUpdatesOnStartupAsync();
+
+        if (_xRayConfig.AutoStartXRay)
+            _ = TryAutoStartXRayAsync();
     }
 
     public string Title
@@ -353,6 +305,7 @@ public class MainWindowViewModel : ViewModelBase
     private string _currentLanguage = "en";
     private string _englishCheckmark = "✓";
     private string _chineseCheckmark = "";
+    private string _russianCheckmark = "";
 
     public string EnglishCheckmark
     {
@@ -366,10 +319,54 @@ public class MainWindowViewModel : ViewModelBase
         set => SetProperty(ref _chineseCheckmark, value);
     }
 
+    public string RussianCheckmark
+    {
+        get => _russianCheckmark;
+        set => SetProperty(ref _russianCheckmark, value);
+    }
+
     public bool StartWithWindows
     {
         get => _startWithWindows;
         set => SetProperty(ref _startWithWindows, value);
+    }
+
+    public bool IsXRayRunning
+    {
+        get => _isXRayRunning;
+        private set => SetProperty(ref _isXRayRunning, value);
+    }
+
+    public bool IsXRayStopped => !_isXRayRunning;
+
+    public string XRayStatusText
+    {
+        get => _xRayStatusText;
+        private set => SetProperty(ref _xRayStatusText, value);
+    }
+
+    public bool IsRoutingRunning
+    {
+        get => _isRoutingRunning;
+        private set
+        {
+            if (SetProperty(ref _isRoutingRunning, value))
+                OnPropertyChanged(nameof(IsRoutingStopped));
+        }
+    }
+
+    public bool IsRoutingStopped => !_isRoutingRunning;
+
+    public bool IsAutoStartXRayEnabled => _xRayConfig.AutoStartXRay;
+
+    public bool AutoStartRouting
+    {
+        get => _autoStartRouting;
+        set
+        {
+            if (SetProperty(ref _autoStartRouting, value))
+                SaveConfigurationInternal();
+        }
     }
 
     public ICommand ShowProxySettingsCommand { get; }
@@ -389,6 +386,13 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand AddRuleCommand { get; }
     public ICommand SaveNewRuleCommand { get; }
     public ICommand CancelAddRuleCommand { get; }
+    public ICommand StartRoutingCommand { get; }
+    public ICommand StopRoutingCommand { get; }
+    public ICommand ToggleAutoStartRoutingCommand { get; }
+    public ICommand ShowXRaySettingsCommand { get; }
+    public ICommand StartXRayCommand { get; }
+    public ICommand StopXRayCommand { get; }
+    public ICommand ToggleAutoStartXRayCommand { get; }
 
     public MainWindowViewModel()
     {
@@ -637,6 +641,133 @@ public class MainWindowViewModel : ViewModelBase
             IsAddRuleViewOpen = false;
             NewProcessName = "";
         });
+
+        StartRoutingCommand = new RelayCommand(() =>
+        {
+            if (_isRoutingRunning) return;
+            IsRoutingRunning = StartRoutingInternal();
+        });
+
+        StopRoutingCommand = new RelayCommand(() =>
+        {
+            if (!_isRoutingRunning) return;
+            StopRoutingInternal();
+            IsRoutingRunning = false;
+        });
+
+        ToggleAutoStartRoutingCommand = new RelayCommand(() =>
+        {
+            AutoStartRouting = !AutoStartRouting;
+        });
+
+        ShowXRaySettingsCommand = new RelayCommand(async () =>
+        {
+            var window = new Views.XRaySettingsWindow();
+            var viewModel = new XRaySettingsViewModel(
+                initial: _xRayConfig,
+                onSave: (cfg) =>
+                {
+                    _xRayConfig = cfg;
+                    SaveConfigurationInternal();
+                    window.Close();
+                },
+                onCancel: () => window.Close()
+            );
+            window.DataContext = viewModel;
+
+            if (_mainWindow != null)
+                await window.ShowDialog(_mainWindow);
+        });
+
+        ToggleAutoStartXRayCommand = new RelayCommand(() =>
+        {
+            _xRayConfig.AutoStartXRay = !_xRayConfig.AutoStartXRay;
+            SaveConfigurationInternal();
+            OnPropertyChanged(nameof(IsAutoStartXRayEnabled));
+        });
+
+        StartXRayCommand = new RelayCommand(async () =>
+        {
+            if (_isXRayRunning) return;
+
+            // If xray binary is missing, offer to download it
+            if (Services.XRayService.FindXRayExecutable(_xRayConfig.XRayPath) == null)
+            {
+                var downloadWindow = new Views.XRayDownloadWindow();
+                var downloadVm     = new XRayDownloadViewModel();
+                downloadWindow.DataContext = downloadVm;
+
+                if (_mainWindow != null)
+                    await downloadWindow.ShowDialog(_mainWindow);
+
+                if (downloadVm.DownloadedPath == null)
+                    return; // user cancelled or download failed
+
+                _xRayConfig.XRayPath = downloadVm.DownloadedPath;
+                SaveConfigurationInternal();
+            }
+
+            // Save current proxy settings to restore later
+            _savedProxyType     = _currentProxyType;
+            _savedProxyIp       = _currentProxyIp;
+            _savedProxyPort     = _currentProxyPort;
+            _savedProxyUsername = _currentProxyUsername;
+            _savedProxyPassword = _currentProxyPassword;
+
+            if (_xRayService.Start(_xRayConfig))
+            {
+                if (_proxyService != null &&
+                    ushort.TryParse(_xRayConfig.LocalPort, out ushort xRayPort))
+                {
+                    _proxyService.SetProxyConfig("SOCKS5", "127.0.0.1", xRayPort, "", "");
+                }
+
+                IsXRayRunning = true;
+                OnPropertyChanged(nameof(IsXRayStopped));
+                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+            }
+        });
+
+        StopXRayCommand = new RelayCommand(() =>
+        {
+            if (!_isXRayRunning) return;
+
+            _xRayService.Stop();
+            IsXRayRunning = false;
+            OnPropertyChanged(nameof(IsXRayStopped));
+            XRayStatusText = "XRay: Stopped";
+
+            // Restore previous proxy settings
+            if (_proxyService != null &&
+                !string.IsNullOrEmpty(_savedProxyIp) &&
+                ushort.TryParse(_savedProxyPort, out ushort savedPort))
+            {
+                _proxyService.SetProxyConfig(
+                    _savedProxyType, _savedProxyIp, savedPort,
+                    _savedProxyUsername, _savedProxyPassword);
+            }
+        });
+
+        _xRayService.LogReceived += msg =>
+        {
+            lock (_activityLogLock)
+            {
+                _pendingActivityLogs.Add($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+            }
+        };
+
+        _xRayService.Stopped += _ =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                if (_isXRayRunning)
+                {
+                    IsXRayRunning = false;
+                    OnPropertyChanged(nameof(IsXRayStopped));
+                    XRayStatusText = "XRay: Stopped (crashed)";
+                }
+            });
+        };
     }
 
     public void ChangeLanguage(string languageCode)
@@ -646,6 +777,7 @@ public class MainWindowViewModel : ViewModelBase
         _currentLanguage = languageCode;
         EnglishCheckmark = languageCode == "en" ? "✓" : "";
         ChineseCheckmark = languageCode == "zh" ? "✓" : "";
+        RussianCheckmark = languageCode == "ru" ? "✓" : "";
 
         var config = ConfigManager.LoadConfig();
         config.Language = languageCode;
@@ -686,9 +818,124 @@ public class MainWindowViewModel : ViewModelBase
         catch { }
     }
 
+    private bool StartRoutingInternal()
+    {
+        try
+        {
+            if (_proxyService == null)
+            {
+                _proxyService = new ProxyBridgeService();
+                _proxyService.LogReceived += msg =>
+                {
+                    lock (_activityLogLock)
+                        _pendingActivityLogs.Add($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+                };
+                _proxyService.ConnectionReceived += (processName, pid, destIp, destPort, proxyInfo) =>
+                {
+                    if (!_isTrafficLoggingEnabled) return;
+                    if (_connectionLogTimer?.IsEnabled == false) _connectionLogTimer.Start();
+                    var entry = $"[{DateTime.Now:HH:mm:ss}] {processName} (PID:{pid}) -> {destIp}:{destPort} via {proxyInfo}\n";
+                    lock (_connectionLogLock)
+                        _pendingConnectionLogs.Add(entry);
+                };
+            }
+
+            _proxyService.SetDnsViaProxy(_dnsViaProxy);
+            _proxyService.SetLocalhostViaProxy(_localhostViaProxy);
+
+            if (!string.IsNullOrEmpty(_currentProxyIp) &&
+                ushort.TryParse(_currentProxyPort, out ushort portNum))
+            {
+                _proxyService.SetProxyConfig(
+                    _currentProxyType, _currentProxyIp, portNum,
+                    _currentProxyUsername, _currentProxyPassword);
+            }
+
+            if (!_proxyService.Start())
+            {
+                QueueActivityLog("ERROR: Failed to start routing service");
+                return false;
+            }
+
+            foreach (var rule in ProxyRules)
+            {
+                uint ruleId = _proxyService.AddRule(
+                    rule.ProcessName, rule.TargetHosts,
+                    rule.TargetPorts, rule.Protocol, rule.Action);
+                if (ruleId > 0)
+                {
+                    rule.RuleId = ruleId;
+                    rule.Index  = ProxyRules.IndexOf(rule) + 1;
+                }
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            QueueActivityLog($"ERROR: {ex.Message}");
+            return false;
+        }
+    }
+
+    private void StopRoutingInternal()
+    {
+        try { _proxyService?.Dispose(); } catch { }
+        _proxyService = null;
+    }
+
+    private async Task TryAutoStartXRayAsync()
+    {
+        // Brief delay so the main window is fully shown before we start
+        await Task.Delay(800);
+
+        if (_isXRayRunning) return;
+
+        var cfg = _xRayConfig;
+        if (string.IsNullOrWhiteSpace(cfg.ServerAddress) ||
+            string.IsNullOrWhiteSpace(cfg.Uuid) ||
+            string.IsNullOrWhiteSpace(cfg.PublicKey))
+        {
+            QueueActivityLog("XRay auto-start skipped: server is not configured");
+            return;
+        }
+
+        if (Services.XRayService.FindXRayExecutable(cfg.XRayPath) == null)
+        {
+            QueueActivityLog("XRay auto-start skipped: xray binary not found. Configure the path in XRay Settings.");
+            return;
+        }
+
+        _savedProxyType     = _currentProxyType;
+        _savedProxyIp       = _currentProxyIp;
+        _savedProxyPort     = _currentProxyPort;
+        _savedProxyUsername = _currentProxyUsername;
+        _savedProxyPassword = _currentProxyPassword;
+
+        bool started = false;
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            started = _xRayService.Start(cfg);
+        });
+
+        if (started)
+        {
+            if (_proxyService != null && ushort.TryParse(cfg.LocalPort, out ushort xRayPort))
+                _proxyService.SetProxyConfig("SOCKS5", "127.0.0.1", xRayPort, "", "");
+
+            await Dispatcher.UIThread.InvokeAsync(() =>
+            {
+                IsXRayRunning = true;
+                OnPropertyChanged(nameof(IsXRayStopped));
+                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{cfg.LocalPort}  ·  HTTP :{cfg.HttpPort}";
+            });
+        }
+    }
+
     public void Cleanup()
     {
         try { SaveConfigurationInternal(); } catch { }
+        try { _xRayService.Dispose(); } catch { }
         try { _proxyService?.Dispose(); _proxyService = null; } catch { }
     }
 
@@ -738,7 +985,13 @@ public class MainWindowViewModel : ViewModelBase
                 _loc.CurrentCulture = new System.Globalization.CultureInfo(config.Language);
                 EnglishCheckmark = config.Language == "en" ? "✓" : "";
                 ChineseCheckmark = config.Language == "zh" ? "✓" : "";
+                RussianCheckmark = config.Language == "ru" ? "✓" : "";
             }
+
+            _autoStartRouting = config.AutoStartRouting;
+
+            if (config.XRay != null)
+                _xRayConfig = config.XRay;
 
             if (config.ProxyRules != null && config.ProxyRules.Count > 0)
             {
@@ -789,6 +1042,7 @@ public class MainWindowViewModel : ViewModelBase
                 IsTrafficLoggingEnabled = _isTrafficLoggingEnabled,
                 Language = _currentLanguage,
                 CloseToTray = _closeToTray,
+                AutoStartRouting = _autoStartRouting,
                 ProxyRules = ProxyRules.Select(r => new ProxyRuleConfig
                 {
                     ProcessName = r.ProcessName,
@@ -797,7 +1051,8 @@ public class MainWindowViewModel : ViewModelBase
                     Protocol = r.Protocol,
                     Action = r.Action,
                     IsEnabled = r.IsEnabled
-                }).ToList()
+                }).ToList(),
+                XRay = _xRayConfig
             };
 
             ConfigManager.SaveConfig(config);

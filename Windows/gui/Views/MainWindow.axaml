@@ -205,6 +205,39 @@
                     <MenuItem Header="{Binding Loc.MenuProxySettings}" Command="{Binding ShowProxySettingsCommand}"/>
                     <MenuItem Header="{Binding Loc.MenuProxyRules}" Command="{Binding ShowProxyRulesCommand}"/>
                     <Separator/>
+                    <!-- Routing -->
+                    <MenuItem Header="{Binding Loc.MenuStartRouting}"
+                              Command="{Binding StartRoutingCommand}"
+                              IsVisible="{Binding IsRoutingStopped}"/>
+                    <MenuItem Header="{Binding Loc.MenuStopRouting}"
+                              Command="{Binding StopRoutingCommand}"
+                              IsVisible="{Binding IsRoutingRunning}"/>
+                    <MenuItem Header="{Binding Loc.MenuAutoStartRouting}"
+                              Command="{Binding ToggleAutoStartRoutingCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding AutoStartRouting}"
+                                      IsHitTestVisible="False"
+                                      Margin="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
+                    <!-- XRay -->
+                    <MenuItem Header="{Binding Loc.MenuXRaySettings}" Command="{Binding ShowXRaySettingsCommand}"/>
+                    <MenuItem Header="{Binding Loc.MenuStartXRay}"
+                              Command="{Binding StartXRayCommand}"
+                              IsVisible="{Binding IsXRayStopped}"/>
+                    <MenuItem Header="{Binding Loc.MenuStopXRay}"
+                              Command="{Binding StopXRayCommand}"
+                              IsVisible="{Binding IsXRayRunning}"/>
+                    <MenuItem Header="{Binding Loc.MenuAutoStartXRay}"
+                              Command="{Binding ToggleAutoStartXRayCommand}">
+                        <MenuItem.Icon>
+                            <CheckBox IsChecked="{Binding IsAutoStartXRayEnabled}"
+                                      IsHitTestVisible="False"
+                                      Margin="0"/>
+                        </MenuItem.Icon>
+                    </MenuItem>
+                    <Separator/>
                     <MenuItem Header="{Binding Loc.MenuEnableTrafficLogging}"
                               Command="{Binding ToggleTrafficLoggingCommand}">
                         <MenuItem.Icon>
@@ -259,6 +292,11 @@
                                 <TextBlock Text="{Binding ChineseCheckmark}" FontSize="14"/>
                             </MenuItem.Icon>
                         </MenuItem>
+                        <MenuItem Header="Русский (Russian)" Click="OnChangeLanguageRussian">
+                            <MenuItem.Icon>
+                                <TextBlock Text="{Binding RussianCheckmark}" FontSize="14"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
                     </MenuItem>
                 </MenuItem>
                 <MenuItem Header="{Binding Loc.MenuAbout}">
@@ -266,6 +304,48 @@
                     <MenuItem Header="{Binding Loc.MenuCheckUpdates}" Command="{Binding CheckForUpdatesCommand}"/>
                 </MenuItem>
             </Menu>
+
+            <!-- Status Bar -->
+            <Border DockPanel.Dock="Bottom" Background="#FF1A1A1A"
+                    BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0"
+                    Padding="12,5">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="12">
+                    <!-- Routing status -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="#FF4CAF50"
+                                 IsVisible="{Binding IsRoutingRunning}"
+                                 VerticalAlignment="Center"/>
+                        <Ellipse Width="8" Height="8" Fill="#FF666666"
+                                 IsVisible="{Binding IsRoutingStopped}"
+                                 VerticalAlignment="Center"/>
+                        <TextBlock FontSize="12" VerticalAlignment="Center"
+                                   Foreground="#FF4CAF50" Text="Routing: Active"
+                                   IsVisible="{Binding IsRoutingRunning}"/>
+                        <TextBlock FontSize="12" VerticalAlignment="Center"
+                                   Foreground="#FF666666" Text="Routing: Stopped"
+                                   IsVisible="{Binding IsRoutingStopped}"/>
+                    </StackPanel>
+                    <!-- Separator -->
+                    <Border Width="1" Background="#FF3F3F46" VerticalAlignment="Stretch" Margin="0,2"/>
+                    <!-- XRay status -->
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="#FF4CAF50"
+                                 IsVisible="{Binding IsXRayRunning}"
+                                 VerticalAlignment="Center"/>
+                        <Ellipse Width="8" Height="8" Fill="#FF666666"
+                                 IsVisible="{Binding IsXRayStopped}"
+                                 VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding XRayStatusText}"
+                                   FontSize="12" VerticalAlignment="Center"
+                                   Foreground="#FF4CAF50"
+                                   IsVisible="{Binding IsXRayRunning}"/>
+                        <TextBlock Text="{Binding XRayStatusText}"
+                                   FontSize="12" VerticalAlignment="Center"
+                                   Foreground="#FF666666"
+                                   IsVisible="{Binding IsXRayStopped}"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
 
             <!-- Tab Control -->
             <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="#FF1E1E1E" Padding="0">

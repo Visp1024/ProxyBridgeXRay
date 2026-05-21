@@ -38,6 +38,14 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnChangeLanguageRussian(object? sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel vm)
+        {
+            vm.ChangeLanguage("ru");
+        }
+    }
+
     protected override void OnClosing(WindowClosingEventArgs e)
     {
         if (e.CloseReason == WindowCloseReason.ApplicationShutdown)

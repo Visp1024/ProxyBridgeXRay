@@ -15,229 +15,229 @@
 
   <!-- Menu Items -->
   <data name="MenuProxy" xml:space="preserve">
-    <value>Proxy</value>
+    <value>Прокси</value>
   </data>
   <data name="MenuProxySettings" xml:space="preserve">
-    <value>Proxy Settings</value>
+    <value>Настройки прокси</value>
   </data>
   <data name="MenuProxyRules" xml:space="preserve">
-    <value>Proxy Rules</value>
+    <value>Правила прокси</value>
   </data>
   <data name="MenuDnsViaProxy" xml:space="preserve">
-    <value>DNS via Proxy</value>
+    <value>DNS через прокси</value>
   </data>
   <data name="MenuLocalhostViaProxy" xml:space="preserve">
-    <value>Localhost via Proxy</value>
+    <value>Localhost через прокси</value>
   </data>
   <data name="MenuEnableTrafficLogging" xml:space="preserve">
-    <value>Enable Traffic Logging</value>
+    <value>Запись трафика</value>
   </data>
   <data name="MenuSettings" xml:space="preserve">
-    <value>Settings</value>
+    <value>Настройки</value>
   </data>
   <data name="MenuCloseToTray" xml:space="preserve">
-    <value>Close to System Tray</value>
+    <value>Свернуть в трей</value>
   </data>
   <data name="MenuRunAtStartup" xml:space="preserve">
-    <value>Run at Startup</value>
+    <value>Запуск при старте</value>
   </data>
   <data name="MenuLanguage" xml:space="preserve">
-    <value>Language</value>
+    <value>Язык</value>
   </data>
   <data name="MenuAbout" xml:space="preserve">
-    <value>About</value>
+    <value>О программе</value>
   </data>
   <data name="MenuAboutProxyBridge" xml:space="preserve">
-    <value>About ProxyBridge</value>
+    <value>О ProxyBridge</value>
   </data>
   <data name="MenuCheckUpdates" xml:space="preserve">
-    <value>Check for Updates</value>
+    <value>Проверить обновления</value>
   </data>
 
   <!-- Tabs -->
   <data name="TabConnections" xml:space="preserve">
-    <value>Connections</value>
+    <value>Подключения</value>
   </data>
   <data name="TabActivity" xml:space="preserve">
-    <value>Activity Logs</value>
+    <value>Журнал активности</value>
   </data>
 
   <!-- Buttons -->
   <data name="ButtonClear" xml:space="preserve">
-    <value>Clear</value>
+    <value>Очистить</value>
   </data>
   <data name="ButtonSave" xml:space="preserve">
-    <value>Save</value>
+    <value>Сохранить</value>
   </data>
   <data name="ButtonCancel" xml:space="preserve">
-    <value>Cancel</value>
+    <value>Отмена</value>
   </data>
   <data name="ButtonClose" xml:space="preserve">
-    <value>Close</value>
+    <value>Закрыть</value>
   </data>
   <data name="ButtonAdd" xml:space="preserve">
-    <value>Add</value>
+    <value>Добавить</value>
   </data>
   <data name="ButtonEdit" xml:space="preserve">
-    <value>Edit</value>
+    <value>Изменить</value>
   </data>
   <data name="ButtonDelete" xml:space="preserve">
-    <value>Delete</value>
+    <value>Удалить</value>
   </data>
 
   <!-- Search Placeholders -->
   <data name="SearchConnectionsPlaceholder" xml:space="preserve">
-    <value>🔍 Search connections...</value>
+    <value>🔍 Поиск подключений...</value>
   </data>
   <data name="SearchActivityPlaceholder" xml:space="preserve">
-    <value>🔍 Search activity logs...</value>
+    <value>🔍 Поиск в журнале...</value>
   </data>
 
   <!-- Log Messages -->
   <data name="LogInitialized" xml:space="preserve">
-    <value>ProxyBridge initialized successfully</value>
+    <value>ProxyBridge инициализирован успешно</value>
   </data>
   <data name="LogServiceStarted" xml:space="preserve">
-    <value>ProxyBridge service started successfully</value>
+    <value>Служба ProxyBridge запущена успешно</value>
   </data>
   <data name="LogServiceStartFailed" xml:space="preserve">
-    <value>ERROR: Failed to start ProxyBridge service</value>
+    <value>ОШИБКА: Не удалось запустить службу ProxyBridge</value>
   </data>
   <data name="LogRestoredProxySettings" xml:space="preserve">
-    <value>Restored proxy settings</value>
+    <value>Настройки прокси восстановлены</value>
   </data>
   <data name="LogRestoredRules" xml:space="preserve">
-    <value>Restored {0} proxy rule(s)</value>
+    <value>Восстановлено правил прокси: {0}</value>
   </data>
   <data name="LogConfigSaved" xml:space="preserve">
-    <value>Configuration saved successfully</value>
+    <value>Конфигурация сохранена</value>
   </data>
   <data name="LogConfigLoadFailed" xml:space="preserve">
-    <value>Failed to load configuration</value>
+    <value>Не удалось загрузить конфигурацию</value>
   </data>
   <data name="LogConfigSaveFailed" xml:space="preserve">
-    <value>Failed to save configuration</value>
+    <value>Не удалось сохранить конфигурацию</value>
   </data>
   <data name="LogProxySettingsSaved" xml:space="preserve">
-    <value>Saved proxy settings</value>
+    <value>Настройки прокси сохранены</value>
   </data>
   <data name="LogProxySettingsFailed" xml:space="preserve">
-    <value>ERROR: Failed to set proxy config</value>
+    <value>ОШИБКА: Не удалось применить настройки прокси</value>
   </data>
   <data name="LogRuleAdded" xml:space="preserve">
-    <value>Added rule</value>
+    <value>Правило добавлено</value>
   </data>
   <data name="LogRuleAddFailed" xml:space="preserve">
-    <value>ERROR: Failed to add rule</value>
+    <value>ОШИБКА: Не удалось добавить правило</value>
   </data>
   <data name="LogDnsViaProxyEnabled" xml:space="preserve">
-    <value>DNS via Proxy: Enabled</value>
+    <value>DNS через прокси: Включено</value>
   </data>
   <data name="LogDnsViaProxyDisabled" xml:space="preserve">
-    <value>DNS via Proxy: Disabled</value>
+    <value>DNS через прокси: Отключено</value>
   </data>
   <data name="LogLanguageChanged" xml:space="preserve">
-    <value>Language changed to</value>
+    <value>Язык изменён на</value>
   </data>
   <data name="LogWithAuth" xml:space="preserve">
-    <value>with auth</value>
+    <value>с аутентификацией</value>
   </data>
 
   <!-- Proxy Settings Window -->
   <data name="WindowProxySettings" xml:space="preserve">
-    <value>Proxy Settings</value>
+    <value>Настройки прокси</value>
   </data>
   <data name="LabelProxyType" xml:space="preserve">
-    <value>Proxy Type</value>
+    <value>Тип прокси</value>
   </data>
   <data name="LabelProxyIp" xml:space="preserve">
-    <value>Proxy IP Address *</value>
+    <value>IP-адрес прокси *</value>
   </data>
   <data name="LabelProxyPort" xml:space="preserve">
-    <value>Proxy Port *</value>
+    <value>Порт прокси *</value>
   </data>
   <data name="LabelUsername" xml:space="preserve">
-    <value>Username (Optional)</value>
+    <value>Имя пользователя (необязательно)</value>
   </data>
   <data name="LabelPassword" xml:space="preserve">
-    <value>Password (Optional)</value>
+    <value>Пароль (необязательно)</value>
   </data>
   <data name="LabelRequiredFields" xml:space="preserve">
-    <value>* Required fields</value>
+    <value>* Обязательные поля</value>
   </data>
   <data name="LabelTestConnection" xml:space="preserve">
-    <value>Test Connection</value>
+    <value>Проверка соединения</value>
   </data>
   <data name="ButtonTestProxy" xml:space="preserve">
-    <value>Test Proxy Connection</value>
+    <value>Проверить соединение</value>
   </data>
   <data name="LabelTargetHost" xml:space="preserve">
-    <value>Target Host</value>
+    <value>Целевой хост</value>
   </data>
   <data name="LabelPort" xml:space="preserve">
-    <value>Port</value>
+    <value>Порт</value>
   </data>
   <data name="ButtonStartTest" xml:space="preserve">
-    <value>▶ Start Test</value>
+    <value>▶ Начать проверку</value>
   </data>
   <data name="LabelOutput" xml:space="preserve">
-    <value>Output</value>
+    <value>Результат</value>
   </data>
   <data name="ButtonSaveChanges" xml:space="preserve">
-    <value>Save Changes</value>
+    <value>Сохранить изменения</value>
   </data>
   <data name="PlaceholderIpAddress" xml:space="preserve">
-    <value>e.g., 127.0.0.1</value>
+    <value>например, 127.0.0.1</value>
   </data>
   <data name="PlaceholderPort" xml:space="preserve">
-    <value>e.g., 1080</value>
+    <value>например, 1080</value>
   </data>
   <data name="PlaceholderNoAuth" xml:space="preserve">
-    <value>Leave empty if no auth required</value>
+    <value>Оставьте пустым, если авторизация не нужна</value>
   </data>
 
   <!-- Proxy Rules Window -->
   <data name="WindowProxyRules" xml:space="preserve">
-    <value>Process Rules</value>
+    <value>Правила процессов</value>
   </data>
   <data name="LabelEnabled" xml:space="preserve">
-    <value>Enabled</value>
+    <value>Вкл.</value>
   </data>
   <data name="LabelActions" xml:space="preserve">
-    <value>Actions</value>
+    <value>Действия</value>
   </data>
   <data name="LabelSR" xml:space="preserve">
-    <value>SR</value>
+    <value>№</value>
   </data>
   <data name="LabelProcess" xml:space="preserve">
-    <value>Process</value>
+    <value>Процесс</value>
   </data>
   <data name="LabelTargetHosts" xml:space="preserve">
-    <value>Target Hosts</value>
+    <value>Целевые хосты</value>
   </data>
   <data name="LabelTargetPorts" xml:space="preserve">
-    <value>Target Ports</value>
+    <value>Целевые порты</value>
   </data>
   <data name="LabelProtocol" xml:space="preserve">
-    <value>Protocol</value>
+    <value>Протокол</value>
   </data>
   <data name="LabelAction" xml:space="preserve">
-    <value>Action</value>
+    <value>Действие</value>
   </data>
   <data name="LabelApplications" xml:space="preserve">
-    <value>Applications</value>
+    <value>Приложения</value>
   </data>
   <data name="ButtonBrowse" xml:space="preserve">
-    <value>Browse...</value>
+    <value>Обзор...</value>
   </data>
   <data name="ExampleApplications" xml:space="preserve">
-    <value>Example: iexplore.exe; "C:\some app.exe"; fire*.exe; *.bin</value>
+    <value>Пример: iexplore.exe; "C:\моё приложение.exe"; fire*.exe; *.bin</value>
   </data>
   <data name="ExampleTargetHosts" xml:space="preserve">
-    <value>Example: 127.0.0.1; 192.168.1.*; 10.1.0.0-10.5.255.255</value>
+    <value>Пример: 127.0.0.1; 192.168.1.*; 10.1.0.0-10.5.255.255</value>
   </data>
   <data name="ExampleTargetPorts" xml:space="preserve">
-    <value>Example: 80; 8000-9000; 3128</value>
+    <value>Пример: 80; 8000-9000; 3128</value>
   </data>
   <data name="ProtocolTCP" xml:space="preserve">
     <value>TCP</value>
@@ -246,76 +246,76 @@
     <value>UDP</value>
   </data>
   <data name="ProtocolBoth" xml:space="preserve">
-    <value>Both (TCP + UDP)</value>
+    <value>Оба (TCP + UDP)</value>
   </data>
   <data name="ActionProxy" xml:space="preserve">
-    <value>PROXY</value>
+    <value>ПРОКСИ</value>
   </data>
   <data name="ActionDirect" xml:space="preserve">
-    <value>DIRECT</value>
+    <value>НАПРЯМУЮ</value>
   </data>
   <data name="ActionBlock" xml:space="preserve">
-    <value>BLOCK</value>
+    <value>БЛОКИРОВАТЬ</value>
   </data>
   <data name="ButtonSaveRule" xml:space="preserve">
-    <value>Save Rule</value>
+    <value>Сохранить правило</value>
   </data>
 
   <!-- Routing Menu -->
   <data name="MenuStartRouting" xml:space="preserve">
-    <value>Start Routing</value>
+    <value>Запустить маршрутизацию</value>
   </data>
   <data name="MenuStopRouting" xml:space="preserve">
-    <value>Stop Routing</value>
+    <value>Остановить маршрутизацию</value>
   </data>
   <data name="MenuAutoStartRouting" xml:space="preserve">
-    <value>Auto-start Routing on Launch</value>
+    <value>Автозапуск маршрутизации при старте</value>
   </data>
 
   <!-- XRay Menu -->
   <data name="MenuXRaySettings" xml:space="preserve">
-    <value>XRay Reality Settings...</value>
+    <value>Настройки XRay Reality...</value>
   </data>
   <data name="MenuStartXRay" xml:space="preserve">
-    <value>Start XRay</value>
+    <value>Запустить XRay</value>
   </data>
   <data name="MenuStopXRay" xml:space="preserve">
-    <value>Stop XRay</value>
+    <value>Остановить XRay</value>
   </data>
   <data name="MenuAutoStartXRay" xml:space="preserve">
-    <value>Auto-start XRay on Launch</value>
+    <value>Автозапуск XRay при старте</value>
   </data>
 
   <!-- XRay Settings Window -->
   <data name="WindowXRaySettings" xml:space="preserve">
-    <value>XRay Reality Settings</value>
+    <value>Настройки XRay Reality</value>
   </data>
   <data name="XRaySubtitle" xml:space="preserve">
-    <value>VLESS + REALITY proxy server configuration</value>
+    <value>Конфигурация прокси VLESS + REALITY</value>
   </data>
   <data name="ButtonSaveSettings" xml:space="preserve">
-    <value>Save Settings</value>
+    <value>Сохранить настройки</value>
   </data>
   <data name="XRaySectionImport" xml:space="preserve">
-    <value>IMPORT FROM vless:// URL</value>
+    <value>ИМПОРТ ИЗ vless:// URL</value>
   </data>
   <data name="XRayImportHint" xml:space="preserve">
-    <value>Paste a vless:// share link to auto-fill all REALITY fields.</value>
+    <value>Вставьте ссылку vless:// для автозаполнения всех полей REALITY.</value>
   </data>
   <data name="ButtonImport" xml:space="preserve">
-    <value>Import</value>
+    <value>Импорт</value>
   </data>
   <data name="XRaySectionServer" xml:space="preserve">
-    <value>SERVER</value>
+    <value>СЕРВЕР</value>
   </data>
   <data name="LabelServerAddress" xml:space="preserve">
-    <value>Server Address</value>
+    <value>Адрес сервера</value>
   </data>
   <data name="PlaceholderServerAddress" xml:space="preserve">
-    <value>e.g. 1.2.3.4 or example.com</value>
+    <value>напр. 1.2.3.4 или example.com</value>
   </data>
   <data name="XRaySectionAuth" xml:space="preserve">
-    <value>AUTHENTICATION</value>
+    <value>АУТЕНТИФИКАЦИЯ</value>
   </data>
   <data name="LabelFlow" xml:space="preserve">
     <value>Flow</value>
@@ -324,22 +324,22 @@
     <value>REALITY TLS</value>
   </data>
   <data name="LabelSni" xml:space="preserve">
-    <value>Server Name (SNI)</value>
+    <value>Имя сервера (SNI)</value>
   </data>
   <data name="PlaceholderSni" xml:space="preserve">
-    <value>e.g. www.microsoft.com</value>
+    <value>напр. www.microsoft.com</value>
   </data>
   <data name="XRaySniHint" xml:space="preserve">
-    <value>Domain for TLS SNI camouflage</value>
+    <value>Домен для маскировки TLS SNI</value>
   </data>
   <data name="LabelFingerprint" xml:space="preserve">
-    <value>Fingerprint</value>
+    <value>Отпечаток</value>
   </data>
   <data name="LabelPublicKey" xml:space="preserve">
-    <value>Public Key</value>
+    <value>Публичный ключ</value>
   </data>
   <data name="PlaceholderPublicKey" xml:space="preserve">
-    <value>Server REALITY public key (Base64)</value>
+    <value>Публичный ключ REALITY сервера (Base64)</value>
   </data>
   <data name="LabelShortId" xml:space="preserve">
     <value>Short ID</value>
@@ -348,50 +348,50 @@
     <value>Spider X</value>
   </data>
   <data name="PlaceholderOptional" xml:space="preserve">
-    <value>(optional)</value>
+    <value>(необязательно)</value>
   </data>
   <data name="XRaySectionInbounds" xml:space="preserve">
-    <value>LOCAL INBOUNDS</value>
+    <value>ЛОКАЛЬНЫЕ ВХОДЯЩИЕ</value>
   </data>
   <data name="LabelSocks5Port" xml:space="preserve">
-    <value>SOCKS5 Port</value>
+    <value>Порт SOCKS5</value>
   </data>
   <data name="LabelHttpPort" xml:space="preserve">
-    <value>HTTP Port</value>
+    <value>Порт HTTP</value>
   </data>
   <data name="XRayInboundsHint" xml:space="preserve">
-    <value>ProxyBridge routes via SOCKS5. Both inbounds are active while XRay is running.</value>
+    <value>ProxyBridge использует SOCKS5. Оба входящих активны при работающем XRay.</value>
   </data>
   <data name="XRaySectionBinary" xml:space="preserve">
-    <value>XRAY BINARY</value>
+    <value>ФАЙЛ XRAY</value>
   </data>
   <data name="LabelXRayPath" xml:space="preserve">
-    <value>Path to xray executable</value>
+    <value>Путь к исполняемому файлу xray</value>
   </data>
   <data name="PlaceholderXRayPath" xml:space="preserve">
-    <value>Leave empty to auto-detect from PATH</value>
+    <value>Оставьте пустым для автопоиска в PATH</value>
   </data>
   <data name="XRayPathHint" xml:space="preserve">
-    <value>If empty, xray.exe is searched in PATH and alongside ProxyBridge.</value>
+    <value>Если пусто, xray.exe ищется в PATH и рядом с ProxyBridge.</value>
   </data>
   <data name="XRaySectionAutoStart" xml:space="preserve">
-    <value>AUTO-START</value>
+    <value>АВТОЗАПУСК</value>
   </data>
   <data name="XRayAutoStartLabel" xml:space="preserve">
-    <value>Connect to XRay automatically on application launch</value>
+    <value>Подключаться к XRay автоматически при запуске приложения</value>
   </data>
   <data name="XRayAutoStartHint" xml:space="preserve">
-    <value>Requires a fully configured server. If xray binary is not found, auto-start is skipped.</value>
+    <value>Требует полной настройки сервера. Если бинарный файл xray не найден, автозапуск пропускается.</value>
   </data>
 
   <!-- XRay Download Window -->
   <data name="XRayDownloadTitle" xml:space="preserve">
-    <value>Download XRay-core</value>
+    <value>Загрузка XRay-core</value>
   </data>
   <data name="XRayDownloadSubtitle" xml:space="preserve">
-    <value>xray-core is required to use VLESS Reality.</value>
+    <value>xray-core необходим для использования VLESS Reality.</value>
   </data>
   <data name="ButtonRetry" xml:space="preserve">
-    <value>Retry</value>
+    <value>Повторить</value>
   </data>
 </root>

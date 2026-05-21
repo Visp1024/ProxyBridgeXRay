@@ -106,6 +106,56 @@ public class Loc : INotifyPropertyChanged
     public string UsernamePlaceholder => Resources.Resources.PlaceholderNoAuth;
     public string PasswordPlaceholder => Resources.Resources.PlaceholderNoAuth;
 
+    // Routing Menu
+    public string MenuStartRouting    => Resources.Resources.MenuStartRouting;
+    public string MenuStopRouting     => Resources.Resources.MenuStopRouting;
+    public string MenuAutoStartRouting => Resources.Resources.MenuAutoStartRouting;
+
+    // XRay Menu
+    public string MenuXRaySettings  => Resources.Resources.MenuXRaySettings;
+    public string MenuStartXRay     => Resources.Resources.MenuStartXRay;
+    public string MenuStopXRay      => Resources.Resources.MenuStopXRay;
+    public string MenuAutoStartXRay => Resources.Resources.MenuAutoStartXRay;
+
+    // XRay Settings Window
+    public string WindowXRaySettings    => Resources.Resources.WindowXRaySettings;
+    public string XRaySubtitle          => Resources.Resources.XRaySubtitle;
+    public string ButtonSaveSettings    => Resources.Resources.ButtonSaveSettings;
+    public string XRaySectionImport     => Resources.Resources.XRaySectionImport;
+    public string XRayImportHint        => Resources.Resources.XRayImportHint;
+    public string ButtonImport          => Resources.Resources.ButtonImport;
+    public string XRaySectionServer     => Resources.Resources.XRaySectionServer;
+    public string LabelServerAddress    => Resources.Resources.LabelServerAddress;
+    public string PlaceholderServerAddress => Resources.Resources.PlaceholderServerAddress;
+    public string XRaySectionAuth       => Resources.Resources.XRaySectionAuth;
+    public string LabelFlow             => Resources.Resources.LabelFlow;
+    public string XRaySectionReality    => Resources.Resources.XRaySectionReality;
+    public string LabelSni              => Resources.Resources.LabelSni;
+    public string PlaceholderSni        => Resources.Resources.PlaceholderSni;
+    public string XRaySniHint           => Resources.Resources.XRaySniHint;
+    public string LabelFingerprint      => Resources.Resources.LabelFingerprint;
+    public string LabelPublicKey        => Resources.Resources.LabelPublicKey;
+    public string PlaceholderPublicKey  => Resources.Resources.PlaceholderPublicKey;
+    public string LabelShortId          => Resources.Resources.LabelShortId;
+    public string LabelSpiderX          => Resources.Resources.LabelSpiderX;
+    public string PlaceholderOptional   => Resources.Resources.PlaceholderOptional;
+    public string XRaySectionInbounds   => Resources.Resources.XRaySectionInbounds;
+    public string LabelSocks5Port       => Resources.Resources.LabelSocks5Port;
+    public string LabelHttpPort         => Resources.Resources.LabelHttpPort;
+    public string XRayInboundsHint      => Resources.Resources.XRayInboundsHint;
+    public string XRaySectionBinary     => Resources.Resources.XRaySectionBinary;
+    public string LabelXRayPath         => Resources.Resources.LabelXRayPath;
+    public string PlaceholderXRayPath   => Resources.Resources.PlaceholderXRayPath;
+    public string XRayPathHint          => Resources.Resources.XRayPathHint;
+    public string XRaySectionAutoStart  => Resources.Resources.XRaySectionAutoStart;
+    public string XRayAutoStartLabel    => Resources.Resources.XRayAutoStartLabel;
+    public string XRayAutoStartHint     => Resources.Resources.XRayAutoStartHint;
+
+    // XRay Download Window
+    public string XRayDownloadTitle    => Resources.Resources.XRayDownloadTitle;
+    public string XRayDownloadSubtitle => Resources.Resources.XRayDownloadSubtitle;
+    public string ButtonRetry          => Resources.Resources.ButtonRetry;
+
     // Proxy Rules Window
     public string ProxyRulesTitle => Resources.Resources.WindowProxyRules;
     public string EnabledLabel => Resources.Resources.LabelEnabled;

@@ -20,6 +20,25 @@ public class AppConfig
     public string Language { get; set; } = "en";
     public bool CloseToTray { get; set; } = true;
     public List<ProxyRuleConfig> ProxyRules { get; set; } = new();
+    public XRayConfig XRay { get; set; } = new();
+    public bool AutoStartRouting { get; set; } = true;
+}
+
+public class XRayConfig
+{
+    public string ServerAddress { get; set; } = "";
+    public string ServerPort { get; set; } = "443";
+    public string Uuid { get; set; } = "";
+    public string Flow { get; set; } = "xtls-rprx-vision";
+    public string Sni { get; set; } = "";
+    public string Fingerprint { get; set; } = "chrome";
+    public string PublicKey { get; set; } = "";
+    public string ShortId { get; set; } = "";
+    public string SpiderX { get; set; } = "";
+    public string LocalPort { get; set; } = "10808";
+    public string HttpPort { get; set; } = "10809";
+    public string XRayPath { get; set; } = "";
+    public bool AutoStartXRay { get; set; } = false;
 }
 
 public class ProxyRuleConfig
@@ -35,6 +54,7 @@ public class ProxyRuleConfig
 [JsonSerializable(typeof(AppConfig))]
 [JsonSerializable(typeof(ProxyRuleConfig))]
 [JsonSerializable(typeof(List<ProxyRuleConfig>))]
+[JsonSerializable(typeof(XRayConfig))]
 internal partial class AppConfigJsonContext : JsonSerializerContext
 {
 }
