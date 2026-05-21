@@ -36,8 +36,7 @@
                             Orientation="Horizontal"
                             Spacing="8"
                             IsVisible="{Binding !IsAddRuleViewOpen}">
-                    <Button Content="{Binding AllRulesSelected, Converter={StaticResource SelectAllTextConverter}}"
-                            Command="{Binding ToggleSelectAllCommand}"
+                    <Button Command="{Binding ToggleSelectAllCommand}"
                             Classes="secondary"
                             Padding="12,8"
                             IsEnabled="{Binding ProxyRules.Count}">
