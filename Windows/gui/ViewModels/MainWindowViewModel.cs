@@ -957,29 +957,20 @@ public class MainWindowViewModel : ViewModelBase
         return "XRay: Running";
     }
 
+    // Раньше здесь был Stop+Start маршрутизации после старта XRay.
+    // Это убивало активные соединения (WinDivert handle закрывался посреди трафика).
+    // SetProxyConfig в native обновляет апстрим без рестарта — этого достаточно.
     private void RestartRoutingWithXRayProxy(XRayConfig cfg)
     {
         if (!_isRoutingRunning) return;
-
-        StopRoutingInternal();
-        bool ok = StartRoutingInternal();
-        IsRoutingRunning = ok;
-
-        // StartRoutingInternal пропускает SetProxyConfig, если _currentProxyIp пуст
-        // (типично для XRay-only сценария) — поэтому применяем апстрим явно.
-        if (ok) ApplyXRayUpstream(cfg);
+        ApplyXRayUpstream(cfg);
     }
 
     private void RestartRoutingWithSavedProxy()
     {
-        if (!_isRoutingRunning) return;
+        if (!_isRoutingRunning || _proxyService == null) return;
 
-        StopRoutingInternal();
-        bool ok = StartRoutingInternal();
-        IsRoutingRunning = ok;
-
-        if (ok && _proxyService != null &&
-            !string.IsNullOrEmpty(_savedProxyIp) &&
+        if (!string.IsNullOrEmpty(_savedProxyIp) &&
             ushort.TryParse(_savedProxyPort, out ushort savedPort))
         {
             _proxyService.SetProxyConfig(

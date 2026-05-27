@@ -246,6 +246,11 @@ public class XRayService : IDisposable
         bool enableHttp  = cfg.EnableHttp;
         if (!enableSocks && !enableHttp) enableSocks = true;
 
+        // Sniffing подменяет dest IP на реальный SNI/Host из TLS/HTTP — без этого
+        // vless-сервер получает CONNECT на сырой IP и часто не может его роутить.
+        const string sniffing =
+            @"""sniffing"": { ""enabled"": true, ""destOverride"": [""http"", ""tls""], ""routeOnly"": false }";
+
         var inbounds = new System.Collections.Generic.List<string>(2);
         if (enableSocks)
         {
@@ -255,7 +260,8 @@ $@"    {{
       ""protocol"": ""socks"",
       ""listen"": ""127.0.0.1"",
       ""port"": {localPort},
-      ""settings"": {{ ""auth"": ""noauth"", ""udp"": true }}
+      ""settings"": {{ ""auth"": ""noauth"", ""udp"": true }},
+      {sniffing}
     }}");
         }
         if (enableHttp)
@@ -266,14 +272,15 @@ $@"    {{
       ""protocol"": ""http"",
       ""listen"": ""127.0.0.1"",
       ""port"": {httpPort},
-      ""settings"": {{ ""allowTransparent"": false }}
+      ""settings"": {{ ""allowTransparent"": false }},
+      {sniffing}
     }}");
         }
         var inboundsJson = string.Join(",\n", inbounds);
 
         return
 $@"{{
-  ""log"": {{ ""loglevel"": ""info"" }},
+  ""log"": {{ ""loglevel"": ""warning"" }},
   ""inbounds"": [
 {inboundsJson}
   ],
