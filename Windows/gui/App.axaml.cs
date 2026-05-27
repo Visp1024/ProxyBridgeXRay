@@ -27,7 +27,16 @@ public class App : Application
 
             if (StartMinimized)
             {
-                desktop.MainWindow.Opened += (s, e) => ((Window)s!).Hide();
+                // One-shot: спрятать окно только при первом Opened. Avalonia ре-фаерит
+                // Opened и при восстановлении из трея — без отписки окно снова прячется.
+                EventHandler? hideOnce = null;
+                hideOnce = (s, e) =>
+                {
+                    desktop.MainWindow!.Opened -= hideOnce!;
+                    desktop.MainWindow!.Hide();
+                    desktop.MainWindow!.ShowInTaskbar = false;
+                };
+                desktop.MainWindow.Opened += hideOnce;
             }
 
             try
@@ -81,6 +90,21 @@ public class App : Application
                 mainWindow.WindowState = WindowState.Normal;
                 mainWindow.Activate();
             }
+        }
+    }
+
+    private DateTime _lastTrayClick = DateTime.MinValue;
+    public void TrayIcon_Clicked(object? sender, EventArgs e)
+    {
+        var now = DateTime.UtcNow;
+        if ((now - _lastTrayClick).TotalMilliseconds < 500)
+        {
+            _lastTrayClick = DateTime.MinValue;
+            TrayIcon_Show(sender, e);
+        }
+        else
+        {
+            _lastTrayClick = now;
         }
     }
 
