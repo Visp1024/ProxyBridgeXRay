@@ -22,6 +22,8 @@ public class XRaySettingsViewModel : ViewModelBase
     private string _spiderX = "";
     private string _localPort = "10808";
     private string _httpPort = "10809";
+    private bool _enableSocks = true;
+    private bool _enableHttp = true;
     private string _xRayPath = "";
 
     private string _serverAddressError = "";
@@ -103,6 +105,32 @@ public class XRaySettingsViewModel : ViewModelBase
     {
         get => _httpPort;
         set { SetProperty(ref _httpPort, value); HttpPortError = ""; }
+    }
+
+    public bool EnableSocks
+    {
+        get => _enableSocks;
+        set
+        {
+            if (SetProperty(ref _enableSocks, value))
+            {
+                LocalPortError = "";
+                HttpPortError = "";
+            }
+        }
+    }
+
+    public bool EnableHttp
+    {
+        get => _enableHttp;
+        set
+        {
+            if (SetProperty(ref _enableHttp, value))
+            {
+                LocalPortError = "";
+                HttpPortError = "";
+            }
+        }
     }
 
     public string XRayPath
@@ -202,6 +230,10 @@ public class XRaySettingsViewModel : ViewModelBase
         SpiderX = initial.SpiderX;
         LocalPort = initial.LocalPort;
         HttpPort  = initial.HttpPort;
+        EnableSocks = initial.EnableSocks;
+        EnableHttp  = initial.EnableHttp;
+        // Защита от сохранённого "всё выключено" — оставляем SOCKS по умолчанию.
+        if (!EnableSocks && !EnableHttp) EnableSocks = true;
         XRayPath  = initial.XRayPath;
         AutoStartXRay = initial.AutoStartXRay;
 
@@ -227,19 +259,25 @@ public class XRaySettingsViewModel : ViewModelBase
                 valid = false;
             }
 
-            if (!ushort.TryParse(LocalPort, out _))
+            if (!EnableSocks && !EnableHttp)
+            {
+                LocalPortError = "Enable at least one inbound (SOCKS5 or HTTP)";
+                valid = false;
+            }
+
+            if (EnableSocks && !ushort.TryParse(LocalPort, out _))
             {
                 LocalPortError = "Invalid port (1–65535)";
                 valid = false;
             }
 
-            if (!ushort.TryParse(HttpPort, out _))
+            if (EnableHttp && !ushort.TryParse(HttpPort, out _))
             {
                 HttpPortError = "Invalid port (1–65535)";
                 valid = false;
             }
 
-            if (valid && LocalPort.Trim() == HttpPort.Trim())
+            if (valid && EnableSocks && EnableHttp && LocalPort.Trim() == HttpPort.Trim())
             {
                 HttpPortError = "Must differ from SOCKS5 port";
                 valid = false;
@@ -260,6 +298,8 @@ public class XRaySettingsViewModel : ViewModelBase
                 SpiderX = SpiderX.Trim(),
                 LocalPort = LocalPort.Trim(),
                 HttpPort  = HttpPort.Trim(),
+                EnableSocks = EnableSocks,
+                EnableHttp  = EnableHttp,
                 XRayPath  = XRayPath.Trim(),
                 AutoStartXRay = AutoStartXRay,
             });

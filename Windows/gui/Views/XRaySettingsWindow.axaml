@@ -250,15 +250,23 @@
 
                 <Grid ColumnDefinitions="*,16,*">
                     <StackPanel Grid.Column="0" Spacing="6">
-                        <TextBlock Text="{Binding Loc.LabelSocks5Port}" Classes="label"/>
-                        <TextBox Text="{Binding LocalPort}" Watermark="10808"/>
+                        <CheckBox IsChecked="{Binding EnableSocks}"
+                                  Content="{Binding Loc.LabelSocks5Port}"
+                                  FontWeight="Medium"
+                                  Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding LocalPort}" Watermark="10808"
+                                 IsEnabled="{Binding EnableSocks}"/>
                         <TextBlock Text="{Binding LocalPortError}"
                                    Classes="error"
                                    IsVisible="{Binding LocalPortError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="6">
-                        <TextBlock Text="{Binding Loc.LabelHttpPort}" Classes="label"/>
-                        <TextBox Text="{Binding HttpPort}" Watermark="10809"/>
+                        <CheckBox IsChecked="{Binding EnableHttp}"
+                                  Content="{Binding Loc.LabelHttpPort}"
+                                  FontWeight="Medium"
+                                  Margin="0,0,0,4"/>
+                        <TextBox Text="{Binding HttpPort}" Watermark="10809"
+                                 IsEnabled="{Binding EnableHttp}"/>
                         <TextBlock Text="{Binding HttpPortError}"
                                    Classes="error"
                                    IsVisible="{Binding HttpPortError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>

@@ -717,15 +717,13 @@ public class MainWindowViewModel : ViewModelBase
 
             if (_xRayService.Start(_xRayConfig))
             {
-                if (_proxyService != null &&
-                    ushort.TryParse(_xRayConfig.LocalPort, out ushort xRayPort))
-                {
-                    _proxyService.SetProxyConfig("SOCKS5", "127.0.0.1", xRayPort, "", "");
-                }
+                ApplyXRayUpstream(_xRayConfig);
 
                 IsXRayRunning = true;
                 OnPropertyChanged(nameof(IsXRayStopped));
-                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+                XRayStatusText = BuildXRayStatusText(_xRayConfig);
+
+                RestartRoutingWithXRayProxy(_xRayConfig);
             }
         });
 
@@ -747,6 +745,8 @@ public class MainWindowViewModel : ViewModelBase
                     _savedProxyType, _savedProxyIp, savedPort,
                     _savedProxyUsername, _savedProxyPassword);
             }
+
+            RestartRoutingWithSavedProxy();
         });
 
         _xRayService.LogReceived += msg =>
@@ -921,15 +921,70 @@ public class MainWindowViewModel : ViewModelBase
 
         if (started)
         {
-            if (_proxyService != null && ushort.TryParse(cfg.LocalPort, out ushort xRayPort))
-                _proxyService.SetProxyConfig("SOCKS5", "127.0.0.1", xRayPort, "", "");
+            ApplyXRayUpstream(cfg);
 
             await Dispatcher.UIThread.InvokeAsync(() =>
             {
                 IsXRayRunning = true;
                 OnPropertyChanged(nameof(IsXRayStopped));
-                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{cfg.LocalPort}  ·  HTTP :{cfg.HttpPort}";
+                XRayStatusText = BuildXRayStatusText(cfg);
+
+                RestartRoutingWithXRayProxy(cfg);
             });
+        }
+    }
+
+    // Применяет к WinDivert-маршрутизации тот inbound XRay, который реально включён.
+    // SOCKS5 имеет приоритет (поддерживает UDP), HTTP — fallback.
+    private void ApplyXRayUpstream(XRayConfig cfg)
+    {
+        if (_proxyService == null) return;
+
+        if (cfg.EnableSocks && ushort.TryParse(cfg.LocalPort, out ushort sp))
+            _proxyService.SetProxyConfig("SOCKS5", "127.0.0.1", sp, "", "");
+        else if (cfg.EnableHttp && ushort.TryParse(cfg.HttpPort, out ushort hp))
+            _proxyService.SetProxyConfig("HTTP", "127.0.0.1", hp, "", "");
+    }
+
+    private static string BuildXRayStatusText(XRayConfig cfg)
+    {
+        if (cfg.EnableSocks && cfg.EnableHttp)
+            return $"XRay: Running  ·  SOCKS5 :{cfg.LocalPort}  ·  HTTP :{cfg.HttpPort}";
+        if (cfg.EnableSocks)
+            return $"XRay: Running  ·  SOCKS5 :{cfg.LocalPort}";
+        if (cfg.EnableHttp)
+            return $"XRay: Running  ·  HTTP :{cfg.HttpPort}";
+        return "XRay: Running";
+    }
+
+    private void RestartRoutingWithXRayProxy(XRayConfig cfg)
+    {
+        if (!_isRoutingRunning) return;
+
+        StopRoutingInternal();
+        bool ok = StartRoutingInternal();
+        IsRoutingRunning = ok;
+
+        // StartRoutingInternal пропускает SetProxyConfig, если _currentProxyIp пуст
+        // (типично для XRay-only сценария) — поэтому применяем апстрим явно.
+        if (ok) ApplyXRayUpstream(cfg);
+    }
+
+    private void RestartRoutingWithSavedProxy()
+    {
+        if (!_isRoutingRunning) return;
+
+        StopRoutingInternal();
+        bool ok = StartRoutingInternal();
+        IsRoutingRunning = ok;
+
+        if (ok && _proxyService != null &&
+            !string.IsNullOrEmpty(_savedProxyIp) &&
+            ushort.TryParse(_savedProxyPort, out ushort savedPort))
+        {
+            _proxyService.SetProxyConfig(
+                _savedProxyType, _savedProxyIp, savedPort,
+                _savedProxyUsername, _savedProxyPassword);
         }
     }
 

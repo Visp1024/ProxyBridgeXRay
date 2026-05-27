@@ -32,9 +32,14 @@ public class XRayService : IDisposable
                 if (!int.TryParse(config.LocalPort, out int localPort)) localPort = 10808;
                 if (!int.TryParse(config.HttpPort,  out int httpPort))  httpPort  = 10809;
 
-                // If either port is busy, try to kill any lingering xray process first.
-                bool socksBlocked = !IsPortAvailable(localPort);
-                bool httpBlocked  = !IsPortAvailable(httpPort);
+                // Если оба inbound выключены, на всякий случай включаем SOCKS, чтобы XRay было что слушать.
+                bool enableSocks = config.EnableSocks;
+                bool enableHttp  = config.EnableHttp;
+                if (!enableSocks && !enableHttp) enableSocks = true;
+
+                // Проверяем занятость только тех портов, которые реально будут заняты XRay'ем.
+                bool socksBlocked = enableSocks && !IsPortAvailable(localPort);
+                bool httpBlocked  = enableHttp  && !IsPortAvailable(httpPort);
 
                 if (socksBlocked || httpBlocked)
                 {
@@ -46,8 +51,8 @@ public class XRayService : IDisposable
                     KillLingeringXRay();
                     Thread.Sleep(600);
 
-                    socksBlocked = !IsPortAvailable(localPort);
-                    httpBlocked  = !IsPortAvailable(httpPort);
+                    socksBlocked = enableSocks && !IsPortAvailable(localPort);
+                    httpBlocked  = enableHttp  && !IsPortAvailable(httpPort);
 
                     if (socksBlocked || httpBlocked)
                     {
@@ -121,7 +126,14 @@ public class XRayService : IDisposable
                 _process.BeginErrorReadLine();
                 _isRunning = true;
 
-                LogReceived?.Invoke($"XRay started (PID: {_process.Id}), SOCKS5 127.0.0.1:{config.LocalPort}, HTTP 127.0.0.1:{config.HttpPort}");
+                var inboundSummary = (enableSocks, enableHttp) switch
+                {
+                    (true, true)  => $"SOCKS5 127.0.0.1:{config.LocalPort}, HTTP 127.0.0.1:{config.HttpPort}",
+                    (true, false) => $"SOCKS5 127.0.0.1:{config.LocalPort}",
+                    (false, true) => $"HTTP 127.0.0.1:{config.HttpPort}",
+                    _             => "(no inbounds)"
+                };
+                LogReceived?.Invoke($"XRay started (PID: {_process.Id}), {inboundSummary}");
                 Started?.Invoke();
                 return true;
             }
@@ -230,24 +242,40 @@ public class XRayService : IDisposable
         if (!int.TryParse(cfg.HttpPort,   out int httpPort))   httpPort   = 10809;
         if (!int.TryParse(cfg.ServerPort, out int serverPort)) serverPort = 443;
 
-        return
-$@"{{
-  ""log"": {{ ""loglevel"": ""info"" }},
-  ""inbounds"": [
-    {{
+        bool enableSocks = cfg.EnableSocks;
+        bool enableHttp  = cfg.EnableHttp;
+        if (!enableSocks && !enableHttp) enableSocks = true;
+
+        var inbounds = new System.Collections.Generic.List<string>(2);
+        if (enableSocks)
+        {
+            inbounds.Add(
+$@"    {{
       ""tag"": ""socks-in"",
       ""protocol"": ""socks"",
       ""listen"": ""127.0.0.1"",
       ""port"": {localPort},
       ""settings"": {{ ""auth"": ""noauth"", ""udp"": true }}
-    }},
-    {{
+    }}");
+        }
+        if (enableHttp)
+        {
+            inbounds.Add(
+$@"    {{
       ""tag"": ""http-in"",
       ""protocol"": ""http"",
       ""listen"": ""127.0.0.1"",
       ""port"": {httpPort},
       ""settings"": {{ ""allowTransparent"": false }}
-    }}
+    }}");
+        }
+        var inboundsJson = string.Join(",\n", inbounds);
+
+        return
+$@"{{
+  ""log"": {{ ""loglevel"": ""info"" }},
+  ""inbounds"": [
+{inboundsJson}
   ],
   ""outbounds"": [
     {{

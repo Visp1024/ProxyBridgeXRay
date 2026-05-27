@@ -37,6 +37,8 @@ public class XRayConfig
     public string SpiderX { get; set; } = "";
     public string LocalPort { get; set; } = "10808";
     public string HttpPort { get; set; } = "10809";
+    public bool EnableSocks { get; set; } = true;
+    public bool EnableHttp { get; set; } = true;
     public string XRayPath { get; set; } = "";
     public bool AutoStartXRay { get; set; } = false;
 }
