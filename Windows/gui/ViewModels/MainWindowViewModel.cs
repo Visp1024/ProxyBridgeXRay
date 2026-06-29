@@ -188,8 +188,6 @@ public class MainWindowViewModel : ViewModelBase
             QueueActivityLog($"ERROR: {ex.Message}");
         }
 
-        _ = CheckForUpdatesOnStartupAsync();
-
         if (_xRayConfig.AutoStartXRay)
             _ = TryAutoStartXRayAsync();
     }
@@ -406,7 +404,6 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand ShowProxyRulesCommand { get; }
     public ICommand ShowLogFiltersCommand { get; }
     public ICommand ShowAboutCommand { get; }
-    public ICommand CheckForUpdatesCommand { get; }
     public ICommand ToggleLocalhostViaProxyCommand { get; }
     public ICommand ToggleTrafficLoggingCommand { get; }
     public ICommand ToggleAutoClearConnectionLogsCommand { get; }
@@ -515,15 +512,6 @@ public class MainWindowViewModel : ViewModelBase
             var window = new AboutWindow { DataContext = viewModel };
             if (_mainWindow != null)
                 await window.ShowDialog(_mainWindow);
-        });
-
-        CheckForUpdatesCommand = new RelayCommand(async () =>
-        {
-            var updateWindow = new UpdateCheckWindow();
-            var viewModel = new UpdateCheckViewModel(() => updateWindow.Close());
-            updateWindow.DataContext = viewModel;
-            if (_mainWindow != null)
-                await updateWindow.ShowDialog(_mainWindow);
         });
 
         ToggleLocalhostViaProxyCommand = new RelayCommand(() => { LocalhostViaProxy = !LocalhostViaProxy; });
@@ -987,27 +975,6 @@ public class MainWindowViewModel : ViewModelBase
         IsProxySettingsDialogOpen = false;
     }
 
-    private async Task CheckForUpdatesOnStartupAsync()
-    {
-        try
-        {
-            var settings = _settingsService.LoadSettings();
-            if (!settings.CheckForUpdatesOnStartup)
-                return;
-
-            var updateService = new UpdateService();
-            var versionInfo = await updateService.CheckForUpdatesAsync();
-
-            if (versionInfo.IsUpdateAvailable && _mainWindow != null)
-            {
-                var notificationWindow = new UpdateNotificationWindow();
-                var viewModel = new UpdateNotificationViewModel(() => notificationWindow.Close(), versionInfo);
-                notificationWindow.DataContext = viewModel;
-                _ = notificationWindow.ShowDialog(_mainWindow);
-            }
-        }
-        catch { }
-    }
 
     public void Cleanup()
     {

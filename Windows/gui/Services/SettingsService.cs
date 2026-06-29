@@ -128,8 +128,6 @@ public class SettingsService
 
 public class AppSettings
 {
-    public bool CheckForUpdatesOnStartup { get; set; } = true;
-    public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
     public bool StartWithWindows { get; set; } = false;
     public string ActiveProfileName { get; set; } = ProfileManager.DefaultProfileName;
 

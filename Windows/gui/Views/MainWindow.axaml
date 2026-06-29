@@ -293,7 +293,6 @@
                 </MenuItem>
                 <MenuItem Header="{Binding Loc.MenuAbout}">
                     <MenuItem Header="{Binding Loc.MenuAboutProxyBridge}" Command="{Binding ShowAboutCommand}"/>
-                    <MenuItem Header="{Binding Loc.MenuCheckUpdates}" Command="{Binding CheckForUpdatesCommand}"/>
                 </MenuItem>
             </Menu>
                 <!-- Quick-access buttons: right next to menu items -->
