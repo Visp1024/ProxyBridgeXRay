@@ -1,0 +1,314 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ProxyBridge.GUI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="520" d:DesignHeight="700"
+        x:Class="ProxyBridge.GUI.Views.XRaySettingsWindow"
+        x:DataType="vm:XRaySettingsViewModel"
+        x:CompileBindings="True"
+        Title="{Binding Loc.WindowXRaySettings}"
+        Icon="/Assets/logo.ico"
+        Width="520" Height="700"
+        MinHeight="600"
+        CanResize="True"
+        Background="#FF2D2D30"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#FF1E1E1E"/>
+            <Setter Property="Foreground" Value="#FFD4D4D4"/>
+            <Setter Property="BorderBrush" Value="#FF3F3F46"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Padding" Value="8"/>
+            <Setter Property="FontFamily" Value="Consolas,Courier New"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="SelectionBrush" Value="#FF264F78"/>
+            <Setter Property="SelectionForegroundBrush" Value="#FFFFFFFF"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="#FF007ACC"/>
+        </Style>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#FFD4D4D4"/>
+        </Style>
+        <Style Selector="TextBlock.label">
+            <Setter Property="FontWeight" Value="Medium"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+        <Style Selector="TextBlock.error">
+            <Setter Property="Foreground" Value="#FFFF6B6B"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBlock.hint">
+            <Setter Property="Foreground" Value="#FF9E9E9E"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#FF0E639C"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF1177BB"/>
+        </Style>
+        <Style Selector="Button:pressed /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF005A9E"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="#FF3E3E42"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF505050"/>
+        </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="#FF3C3C3C"/>
+            <Setter Property="Foreground" Value="#FFD4D4D4"/>
+            <Setter Property="BorderBrush" Value="#FF3F3F46"/>
+            <Setter Property="Padding" Value="8"/>
+        </Style>
+        <Style Selector="ComboBox:focus /template/ Border#Background">
+            <Setter Property="BorderBrush" Value="#FF007ACC"/>
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#FFD4D4D4"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel>
+        <!-- Header -->
+        <Border DockPanel.Dock="Top" Background="#FF1E1E1E" Padding="20,16">
+            <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Text="⚡" FontSize="22" VerticalAlignment="Center"/>
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{Binding Loc.WindowXRaySettings}"
+                               FontSize="18"
+                               FontWeight="SemiBold"
+                               Foreground="#FFE0E0E0"/>
+                    <TextBlock Text="{Binding Loc.XRaySubtitle}"
+                               Classes="hint"
+                               FontSize="12"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Footer Buttons -->
+        <Border DockPanel.Dock="Bottom" Padding="24,16" Background="#FF252526"
+                BorderBrush="#FF3F3F46" BorderThickness="0,1,0,0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                <Button Content="{Binding Loc.ButtonCancel}"
+                        Classes="secondary"
+                        Command="{Binding CancelCommand}"
+                        Width="100"/>
+                <Button Content="{Binding Loc.ButtonSaveSettings}"
+                        Command="{Binding SaveCommand}"
+                        Width="140"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Form -->
+        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Margin="24,20,24,20" Spacing="16">
+
+                <!-- Section: Import from URL -->
+                <Border Background="#FF1A2634"
+                        BorderBrush="#FF007ACC"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="16,14">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding Loc.XRaySectionImport}"
+                                   FontSize="11" FontWeight="Bold"
+                                   Foreground="#FF007ACC" LetterSpacing="2"/>
+                        <TextBlock Text="{Binding Loc.XRayImportHint}"
+                                   FontSize="12" Foreground="#FF9E9E9E" TextWrapping="Wrap"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBox Grid.Column="0"
+                                     Text="{Binding ImportUrl}"
+                                     Watermark="vless://uuid@host:port?security=reality&amp;pbk=...#name"
+                                     Margin="0,0,8,0"/>
+                            <Button Grid.Column="1"
+                                    Content="{Binding Loc.ButtonImport}"
+                                    Command="{Binding ImportFromUrlCommand}"
+                                    Width="90"/>
+                        </Grid>
+                        <TextBlock Text="{Binding ImportMessage}"
+                                   FontSize="12"
+                                   Foreground="#FF4CAF50"
+                                   IsVisible="{Binding ShowImportSuccess}"/>
+                        <TextBlock Text="{Binding ImportMessage}"
+                                   FontSize="12"
+                                   Foreground="#FFFF6B6B"
+                                   IsVisible="{Binding ShowImportError}"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- Section: Server -->
+                <TextBlock Text="{Binding Loc.XRaySectionServer}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2"/>
+
+                <Grid ColumnDefinitions="3*,*" RowDefinitions="Auto">
+                    <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,8,0">
+                        <TextBlock Text="{Binding Loc.LabelServerAddress}" Classes="label"/>
+                        <TextBox Text="{Binding ServerAddress}"
+                                 Watermark="{Binding Loc.PlaceholderServerAddress}"/>
+                        <TextBlock Text="{Binding ServerAddressError}"
+                                   Classes="error"
+                                   IsVisible="{Binding ServerAddressError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="{Binding Loc.PortLabel}" Classes="label"/>
+                        <TextBox Text="{Binding ServerPort}" Watermark="443"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Section: Authentication -->
+                <TextBlock Text="{Binding Loc.XRaySectionAuth}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2" Margin="0,8,0,0"/>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="UUID" Classes="label"/>
+                    <TextBox Text="{Binding Uuid}"
+                             Watermark="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"/>
+                    <TextBlock Text="{Binding UuidError}"
+                               Classes="error"
+                               IsVisible="{Binding UuidError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc.LabelFlow}" Classes="label"/>
+                    <ComboBox x:Name="FlowComboBox"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="xtls-rprx-vision" Tag="xtls-rprx-vision"/>
+                        <ComboBoxItem Content="(none)" Tag=""/>
+                    </ComboBox>
+                </StackPanel>
+
+                <!-- Section: REALITY TLS -->
+                <TextBlock Text="{Binding Loc.XRaySectionReality}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2" Margin="0,8,0,0"/>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc.LabelSni}" Classes="label"/>
+                    <TextBox Text="{Binding Sni}"
+                             Watermark="{Binding Loc.PlaceholderSni}"/>
+                    <TextBlock Text="{Binding Loc.XRaySniHint}" Classes="hint"/>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc.LabelFingerprint}" Classes="label"/>
+                    <ComboBox x:Name="FingerprintComboBox"
+                              HorizontalAlignment="Stretch">
+                        <ComboBoxItem Content="chrome" Tag="chrome"/>
+                        <ComboBoxItem Content="firefox" Tag="firefox"/>
+                        <ComboBoxItem Content="safari" Tag="safari"/>
+                        <ComboBoxItem Content="ios" Tag="ios"/>
+                        <ComboBoxItem Content="android" Tag="android"/>
+                        <ComboBoxItem Content="edge" Tag="edge"/>
+                        <ComboBoxItem Content="360" Tag="360"/>
+                        <ComboBoxItem Content="qq" Tag="qq"/>
+                        <ComboBoxItem Content="random" Tag="random"/>
+                        <ComboBoxItem Content="randomized" Tag="randomized"/>
+                    </ComboBox>
+                </StackPanel>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc.LabelPublicKey}" Classes="label"/>
+                    <TextBox Text="{Binding PublicKey}"
+                             Watermark="{Binding Loc.PlaceholderPublicKey}"/>
+                    <TextBlock Text="{Binding PublicKeyError}"
+                               Classes="error"
+                               IsVisible="{Binding PublicKeyError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+
+                <Grid ColumnDefinitions="2*,*" RowDefinitions="Auto">
+                    <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,8,0">
+                        <TextBlock Text="{Binding Loc.LabelShortId}" Classes="label"/>
+                        <TextBox Text="{Binding ShortId}"
+                                 Watermark="{Binding Loc.PlaceholderOptional}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Spacing="6">
+                        <TextBlock Text="{Binding Loc.LabelSpiderX}" Classes="label"/>
+                        <TextBox Text="{Binding SpiderX}"
+                                 Watermark="{Binding Loc.PlaceholderOptional}"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Section: Local Inbounds -->
+                <TextBlock Text="{Binding Loc.XRaySectionInbounds}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2" Margin="0,8,0,0"/>
+
+                <Grid ColumnDefinitions="*,16,*">
+                    <StackPanel Grid.Column="0" Spacing="6">
+                        <TextBlock Text="{Binding Loc.LabelSocks5Port}" Classes="label"/>
+                        <TextBox Text="{Binding LocalPort}" Watermark="10808"/>
+                        <TextBlock Text="{Binding LocalPortError}"
+                                   Classes="error"
+                                   IsVisible="{Binding LocalPortError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="2" Spacing="6">
+                        <TextBlock Text="{Binding Loc.LabelHttpPort}" Classes="label"/>
+                        <TextBox Text="{Binding HttpPort}" Watermark="10809"/>
+                        <TextBlock Text="{Binding HttpPortError}"
+                                   Classes="error"
+                                   IsVisible="{Binding HttpPortError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                    </StackPanel>
+                </Grid>
+                <TextBlock Text="{Binding Loc.XRayInboundsHint}"
+                           Classes="hint" TextWrapping="Wrap"/>
+
+                <!-- Section: XRay Binary -->
+                <TextBlock Text="{Binding Loc.XRaySectionBinary}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2" Margin="0,8,0,0"/>
+
+                <StackPanel Spacing="6">
+                    <TextBlock Text="{Binding Loc.LabelXRayPath}" Classes="label"/>
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding XRayPath}"
+                                 Watermark="{Binding Loc.PlaceholderXRayPath}"
+                                 Margin="0,0,8,0"/>
+                        <Button Grid.Column="1"
+                                Content="{Binding Loc.BrowseButton}"
+                                Classes="secondary"
+                                Click="OnBrowseXRayPath"
+                                Padding="12,8"/>
+                    </Grid>
+                    <TextBlock Text="{Binding Loc.XRayPathHint}"
+                               Classes="hint" TextWrapping="Wrap"/>
+                </StackPanel>
+
+                <!-- Section: Auto-Start -->
+                <TextBlock Text="{Binding Loc.XRaySectionAutoStart}"
+                           FontSize="11" FontWeight="Bold"
+                           Foreground="#FF007ACC" LetterSpacing="2" Margin="0,8,0,0"/>
+
+                <Border Background="#FF1E2A1E"
+                        BorderBrush="#FF4CAF50"
+                        BorderThickness="1"
+                        CornerRadius="4"
+                        Padding="14,12">
+                    <StackPanel Spacing="8">
+                        <CheckBox IsChecked="{Binding AutoStartXRay}"
+                                  Foreground="#FFD4D4D4"
+                                  Content="{Binding Loc.XRayAutoStartLabel}"/>
+                        <TextBlock Text="{Binding Loc.XRayAutoStartHint}"
+                                   Classes="hint" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

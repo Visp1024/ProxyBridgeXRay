@@ -1,0 +1,124 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ProxyBridge.GUI.ViewModels"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="440" d:DesignHeight="240"
+        x:Class="ProxyBridge.GUI.Views.XRayDownloadWindow"
+        x:DataType="vm:XRayDownloadViewModel"
+        x:CompileBindings="True"
+        Title="{Binding Loc.XRayDownloadTitle}"
+        Icon="/Assets/logo.ico"
+        Width="440" Height="240"
+        CanResize="False"
+        Background="#FF2D2D30"
+        WindowStartupLocation="CenterOwner">
+
+    <Window.Styles>
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="#FFD4D4D4"/>
+        </Style>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#FF3E3E42"/>
+            <Setter Property="Foreground" Value="#FFFFFFFF"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="16,8"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="CornerRadius" Value="3"/>
+            <Setter Property="Cursor" Value="Hand"/>
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF505050"/>
+        </Style>
+        <Style Selector="Button.accent">
+            <Setter Property="Background" Value="#FF0E639C"/>
+        </Style>
+        <Style Selector="Button.accent:pointerover /template/ ContentPresenter">
+            <Setter Property="Background" Value="#FF1177BB"/>
+        </Style>
+        <Style Selector="ProgressBar">
+            <Setter Property="Background" Value="#FF1E1E1E"/>
+            <Setter Property="Foreground" Value="#FF007ACC"/>
+            <Setter Property="Height" Value="10"/>
+            <Setter Property="CornerRadius" Value="5"/>
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="28,24">
+
+        <!-- Header -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="12" Margin="0,0,0,20">
+            <TextBlock Text="⬇" FontSize="26" VerticalAlignment="Center"/>
+            <StackPanel VerticalAlignment="Center">
+                <TextBlock Text="{Binding Loc.XRayDownloadTitle}"
+                           FontSize="16" FontWeight="SemiBold"
+                           Foreground="#FFE0E0E0"/>
+                <TextBlock Text="{Binding Loc.XRayDownloadSubtitle}"
+                           FontSize="12" Foreground="#FF9E9E9E"/>
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Footer: action buttons -->
+        <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal"
+                    HorizontalAlignment="Right" Spacing="10" Margin="0,16,0,0">
+            <Button Content="{Binding Loc.ButtonRetry}"
+                    Classes="accent"
+                    IsVisible="{Binding IsFailed}"
+                    Click="OnRetryClicked"/>
+            <!-- "Cancel" while running -->
+            <Button Content="{Binding Loc.ButtonCancel}"
+                    Command="{Binding CancelCommand}"
+                    IsVisible="{Binding IsRunning}"/>
+            <!-- "Close" after finish (success or failure) -->
+            <Button Content="{Binding Loc.ButtonClose}"
+                    IsVisible="{Binding !IsRunning}"
+                    Click="OnCloseClicked"/>
+        </StackPanel>
+
+        <!-- Body -->
+        <StackPanel Spacing="14">
+
+            <!-- Progress bar -->
+            <ProgressBar Value="{Binding Progress}" Maximum="100"
+                         IsVisible="{Binding IsRunning}"/>
+
+            <!-- Status text (neutral / running) -->
+            <TextBlock Text="{Binding StatusText}"
+                       FontSize="13"
+                       Foreground="#FF9E9E9E"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding !IsSuccess}"/>
+
+            <!-- Success text -->
+            <TextBlock Text="{Binding StatusText}"
+                       FontSize="13"
+                       Foreground="#FF4CAF50"
+                       TextWrapping="Wrap"
+                       IsVisible="{Binding IsSuccess}"/>
+
+            <!-- Error detail box -->
+            <Border Background="#FF3A1A1A"
+                    BorderBrush="#FFFF6B6B"
+                    BorderThickness="1"
+                    CornerRadius="4"
+                    Padding="12,10"
+                    IsVisible="{Binding IsFailed}">
+                <StackPanel Spacing="4">
+                    <TextBlock Text="Error" FontWeight="Bold"
+                               Foreground="#FFFF6B6B" FontSize="12"/>
+                    <TextBlock Text="{Binding ErrorText}"
+                               Foreground="#FFFF9E9E"
+                               FontSize="12"
+                               TextWrapping="Wrap"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Progress percentage -->
+            <TextBlock FontSize="12" Foreground="#FF666666"
+                       IsVisible="{Binding IsRunning}">
+                <Run Text="{Binding Progress}"/><Run Text="%"/>
+            </TextBlock>
+
+        </StackPanel>
+    </DockPanel>
+</Window>
