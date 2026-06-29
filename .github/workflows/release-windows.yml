@@ -56,6 +56,19 @@ jobs:
       run: choco install nsis -y --no-progress
       shell: pwsh
 
+    - name: Install NSIS EnVar plugin
+      run: |
+        # The installer uses EnVar:: to manage PATH; chocolatey NSIS ships
+        # without third-party plugins, so install EnVar into the NSIS Plugins dir.
+        $url = "https://nsis.sourceforge.io/mediawiki/images/7/7f/EnVar_plugin.zip"
+        Invoke-WebRequest -Uri $url -OutFile "EnVar_plugin.zip" -UseBasicParsing
+        Expand-Archive -Path "EnVar_plugin.zip" -DestinationPath "EnVar_plugin" -Force
+        $nsisPlugins = "C:\Program Files (x86)\NSIS\Plugins"
+        Copy-Item "EnVar_plugin\Plugins\*" -Destination $nsisPlugins -Recurse -Force
+        Write-Host "EnVar plugin installed into $nsisPlugins"
+        Get-ChildItem -Path $nsisPlugins -Recurse -Filter EnVar.dll | ForEach-Object { Write-Host "  $($_.FullName)" }
+      shell: pwsh
+
     - name: Build project (no signing)
       run: .\compile.ps1 -NoSign
       working-directory: Windows
