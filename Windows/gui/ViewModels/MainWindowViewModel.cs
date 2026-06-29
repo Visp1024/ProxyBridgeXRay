@@ -817,59 +817,80 @@ public class MainWindowViewModel : ViewModelBase
 
         ShowXRaySettingsCommand = new RelayCommand(async () =>
         {
-            var window = new XRaySettingsWindow();
-            var viewModel = new XRaySettingsViewModel(
-                initial: _xRayConfig,
-                onSave: (cfg) =>
-                {
-                    _xRayConfig = cfg;
-                    SaveXRayConfig();
-                    window.Close();
-                },
-                onCancel: () => window.Close());
-            window.DataContext = viewModel;
+            try
+            {
+                var window = new XRaySettingsWindow();
+                var viewModel = new XRaySettingsViewModel(
+                    initial: _xRayConfig,
+                    onSave: (cfg) =>
+                    {
+                        _xRayConfig = cfg;
+                        SaveXRayConfig();
+                        window.Close();
+                    },
+                    onCancel: () => window.Close());
+                window.DataContext = viewModel;
 
-            if (_mainWindow != null)
-                await window.ShowDialog(_mainWindow);
+                if (_mainWindow != null)
+                    await window.ShowDialog(_mainWindow);
+            }
+            catch (Exception ex)
+            {
+                QueueActivityLog($"XRay settings failed: {ex.Message}");
+            }
         });
 
         StartXRayCommand = new RelayCommand(async () =>
         {
-            if (_isXRayRunning) return;
-
-            // If the xray binary is missing, offer to download it.
-            if (XRayService.FindXRayExecutable(_xRayConfig.XRayPath) == null)
+            try
             {
-                var downloadWindow = new XRayDownloadWindow();
-                var downloadVm = new XRayDownloadViewModel();
-                downloadWindow.DataContext = downloadVm;
+                if (_isXRayRunning) return;
 
-                if (_mainWindow != null)
-                    await downloadWindow.ShowDialog(_mainWindow);
+                // If the xray binary is missing, offer to download it.
+                if (XRayService.FindXRayExecutable(_xRayConfig.XRayPath) == null)
+                {
+                    var downloadWindow = new XRayDownloadWindow();
+                    var downloadVm = new XRayDownloadViewModel();
+                    downloadWindow.DataContext = downloadVm;
 
-                if (downloadVm.DownloadedPath == null)
-                    return; // cancelled or failed
+                    if (_mainWindow != null)
+                        await downloadWindow.ShowDialog(_mainWindow);
 
-                _xRayConfig.XRayPath = downloadVm.DownloadedPath;
-                SaveXRayConfig();
+                    if (downloadVm.DownloadedPath == null)
+                        return; // cancelled or failed
+
+                    _xRayConfig.XRayPath = downloadVm.DownloadedPath;
+                    SaveXRayConfig();
+                }
+
+                if (_xRayService.Start(_xRayConfig))
+                {
+                    IsXRayRunning = true;
+                    XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+                    EnsureXRayProxyConfig();
+                }
             }
-
-            if (_xRayService.Start(_xRayConfig))
+            catch (Exception ex)
             {
-                IsXRayRunning = true;
-                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
-                EnsureXRayProxyConfig();
+                QueueActivityLog($"Start XRay failed: {ex.Message}");
             }
         });
 
         StopXRayCommand = new RelayCommand(() =>
         {
-            if (!_isXRayRunning) return;
+            try
+            {
+                if (!_isXRayRunning) return;
 
-            _xRayService.Stop();
-            IsXRayRunning = false;
-            XRayStatusText = "XRay: Stopped";
-            RemoveXRayProxyConfig();
+                _xRayService.Stop();
+                IsXRayRunning = false;
+                XRayStatusText = "XRay: Stopped";
+                RemoveXRayProxyConfig();
+            }
+            catch (Exception ex)
+            {
+                QueueActivityLog($"Stop XRay failed: {ex.Message}");
+            }
         });
 
         _xRayService.LogReceived += msg =>
@@ -911,11 +932,18 @@ public class MainWindowViewModel : ViewModelBase
             string.Equals(p.Type, "SOCKS5", StringComparison.OrdinalIgnoreCase));
         if (existing != null) { _xRayManagedConfigId = existing.Id; return; }
 
-        uint nativeId = _proxyService.AddProxyConfig("SOCKS5", XRayConfigHost, port, "", "");
-        if (nativeId == 0) return;
-        _xRayManagedConfigId = nativeId;
-        ProxyConfigs.Add(new ProxyConfig { Id = nativeId, Type = "SOCKS5", Host = XRayConfigHost, Port = _xRayConfig.LocalPort });
-        SaveCurrentProfileAsync();
+        try
+        {
+            uint nativeId = _proxyService.AddProxyConfig("SOCKS5", XRayConfigHost, port, "", "");
+            if (nativeId == 0) return;
+            _xRayManagedConfigId = nativeId;
+            ProxyConfigs.Add(new ProxyConfig { Id = nativeId, Type = "SOCKS5", Host = XRayConfigHost, Port = _xRayConfig.LocalPort });
+            SaveCurrentProfileAsync();
+        }
+        catch (Exception ex)
+        {
+            QueueActivityLog($"XRay: could not register proxy config with routing core ({ex.Message})");
+        }
     }
 
     private void RemoveXRayProxyConfig()
@@ -925,7 +953,8 @@ public class MainWindowViewModel : ViewModelBase
         if (pc != null)
         {
             ProxyConfigs.Remove(pc);
-            _proxyService?.DeleteProxyConfig(_xRayManagedConfigId);
+            try { _proxyService?.DeleteProxyConfig(_xRayManagedConfigId); }
+            catch (Exception ex) { QueueActivityLog($"XRay: could not remove proxy config ({ex.Message})"); }
             SaveCurrentProfileAsync();
         }
         _xRayManagedConfigId = 0;
@@ -948,11 +977,18 @@ public class MainWindowViewModel : ViewModelBase
 
         await Dispatcher.UIThread.InvokeAsync(() =>
         {
-            if (_xRayService.Start(_xRayConfig))
+            try
             {
-                IsXRayRunning = true;
-                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
-                EnsureXRayProxyConfig();
+                if (_xRayService.Start(_xRayConfig))
+                {
+                    IsXRayRunning = true;
+                    XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+                    EnsureXRayProxyConfig();
+                }
+            }
+            catch (Exception ex)
+            {
+                QueueActivityLog($"XRay auto-start failed: {ex.Message}");
             }
         });
     }

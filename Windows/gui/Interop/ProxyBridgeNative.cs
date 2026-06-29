@@ -11,15 +11,25 @@ public static class ProxyBridgeNative
 
     static ProxyBridgeNative()
     {
-        var assemblyPath = AppContext.BaseDirectory;
-        if (!string.IsNullOrEmpty(assemblyPath))
-        {
-            var dllPath = Path.Combine(assemblyPath, DllName);
-            if (File.Exists(dllPath))
-            {
-                NativeLibrary.Load(dllPath);
-            }
-        }
+        // Resolve the routing core ONLY from our own application directory.
+        // Never let the OS fall back to PATH — when an original ProxyBridge is
+        // installed in parallel, its directory is on PATH and a default search
+        // would load its (possibly incompatible) native core into our process.
+        NativeLibrary.SetDllImportResolver(typeof(ProxyBridgeNative).Assembly, ResolveNativeLibrary);
+    }
+
+    private static IntPtr ResolveNativeLibrary(string libraryName, Assembly assembly, DllImportSearchPath? searchPath)
+    {
+        if (!string.Equals(libraryName, DllName, StringComparison.OrdinalIgnoreCase))
+            return IntPtr.Zero; // default resolution for any other library
+
+        var dllPath = Path.Combine(AppContext.BaseDirectory, DllName);
+        if (File.Exists(dllPath))
+            return NativeLibrary.Load(dllPath);
+
+        // Do not fall back to PATH; signal a clean, catchable failure instead.
+        throw new DllNotFoundException(
+            $"{DllName} was not found next to the application. The native routing core is required for traffic routing.");
     }
 
     public enum ProxyType
