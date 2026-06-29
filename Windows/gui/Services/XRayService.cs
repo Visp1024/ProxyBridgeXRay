@@ -12,6 +12,7 @@ public class XRayService : IDisposable
 {
     private Process? _process;
     private string _configFilePath = "";
+    private string _pidFilePath = "";
     private readonly object _lock = new();
     private bool _isRunning;
 
@@ -32,12 +33,23 @@ public class XRayService : IDisposable
                 if (!int.TryParse(config.LocalPort, out int localPort)) localPort = 10808;
                 if (!int.TryParse(config.HttpPort,  out int httpPort))  httpPort  = 10809;
 
+                _pidFilePath = PidFilePath(localPort);
+
                 // Good-neighbour port check: never kill foreign xray processes
                 // (another app — or a second ProxyBridge — may legitimately run
-                // its own tunnel). If our configured ports are taken, report it
-                // and let the user pick different ports in XRay settings.
+                // its own tunnel). A busy port may, however, be OUR own orphan
+                // left by a previous crash/force-kill — reclaim only that, since
+                // it is tracked by our pid file.
                 bool socksBlocked = !IsPortAvailable(localPort);
                 bool httpBlocked  = !IsPortAvailable(httpPort);
+
+                if (socksBlocked || httpBlocked)
+                {
+                    ReclaimOwnOrphan();
+                    Thread.Sleep(300);
+                    socksBlocked = !IsPortAvailable(localPort);
+                    httpBlocked  = !IsPortAvailable(httpPort);
+                }
 
                 if (socksBlocked || httpBlocked)
                 {
@@ -46,7 +58,7 @@ public class XRayService : IDisposable
                         : socksBlocked ? $"{localPort}" : $"{httpPort}";
 
                     LogReceived?.Invoke(
-                        $"XRay ERROR: local port(s) {blocked} already in use. " +
+                        $"XRay ERROR: local port(s) {blocked} already in use by another process. " +
                         $"To run alongside another xray instance, set different " +
                         $"SOCKS5/HTTP ports in XRay settings.");
                     return false;
@@ -96,6 +108,7 @@ public class XRayService : IDisposable
                         _process?.Dispose();
                         _process = null;
                     }
+                    TryDelete(_pidFilePath);
                     LogReceived?.Invoke($"XRay process exited (code: {code})");
                     Stopped?.Invoke(code);
                 };
@@ -108,9 +121,17 @@ public class XRayService : IDisposable
                     return false;
                 }
 
+                // Tie xray to this process via a kill-on-close Job Object so it is
+                // terminated automatically if we crash or are force-killed.
+                JobObjectChildTracker.AddProcess(_process);
+
                 _process.BeginOutputReadLine();
                 _process.BeginErrorReadLine();
                 _isRunning = true;
+
+                // Pid file is a secondary fallback (e.g. if the Job Object could
+                // not be created) and lets a future run reclaim a legacy orphan.
+                WritePidFile(_pidFilePath, _process.Id);
 
                 LogReceived?.Invoke($"XRay started (PID: {_process.Id}), SOCKS5 127.0.0.1:{config.LocalPort}, HTTP 127.0.0.1:{config.HttpPort}");
                 Started?.Invoke();
@@ -140,8 +161,58 @@ public class XRayService : IDisposable
             catch { }
 
             _isRunning = false;
+            TryDelete(_pidFilePath);
             LogReceived?.Invoke("XRay stopped.");
         }
+    }
+
+    private static string PidFilePath(int localPort) => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        "ProxyBridgeXRay", $"xray_{localPort}.pid");
+
+    // Kill an orphaned xray that THIS app previously started on the same port,
+    // identified via our own pid file. A foreign app's xray is never recorded
+    // there, so it is never touched.
+    private void ReclaimOwnOrphan()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(_pidFilePath) || !File.Exists(_pidFilePath)) return;
+            if (!int.TryParse(File.ReadAllText(_pidFilePath).Trim(), out int pid)) { TryDelete(_pidFilePath); return; }
+
+            try
+            {
+                using var proc = Process.GetProcessById(pid);
+                if (string.Equals(proc.ProcessName, "xray", StringComparison.OrdinalIgnoreCase))
+                {
+                    LogReceived?.Invoke($"XRay: reclaiming our orphaned instance (PID {pid})…");
+                    proc.Kill(entireProcessTree: true);
+                    proc.WaitForExit(2000);
+                }
+            }
+            catch (ArgumentException) { /* PID no longer running */ }
+
+            TryDelete(_pidFilePath);
+        }
+        catch { }
+    }
+
+    private static void WritePidFile(string path, int pid)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(path)) return;
+            var dir = Path.GetDirectoryName(path);
+            if (!string.IsNullOrEmpty(dir)) Directory.CreateDirectory(dir);
+            File.WriteAllText(path, pid.ToString());
+        }
+        catch { }
+    }
+
+    private static void TryDelete(string path)
+    {
+        try { if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path); }
+        catch { }
     }
 
     public static string? FindXRayExecutable(string configuredPath) =>
