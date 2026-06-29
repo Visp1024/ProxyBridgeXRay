@@ -476,23 +476,34 @@ public class MainWindowViewModel : ViewModelBase
                 availableProxyConfigs: ProxyConfigs,
                 onAddRule: (rule) =>
                 {
+                    // Register with the routing core when available (best-effort),
+                    // but always keep the rule in the list/profile so configuration
+                    // is never silently lost when the core is unavailable.
                     if (_proxyService != null)
                     {
-                        uint ruleId = _proxyService.AddRule(
-                            rule.ProcessName, rule.TargetHosts, rule.TargetPorts,
-                            rule.Protocol, rule.Action, rule.ProxyConfigId);
-                        if (ruleId > 0)
+                        try
                         {
-                            rule.RuleId = ruleId;
-                            rule.Index = ProxyRules.Count + 1;
-                            ProxyRules.Add(rule);
-                            SaveCurrentProfileAsync();
+                            uint ruleId = _proxyService.AddRule(
+                                rule.ProcessName, rule.TargetHosts, rule.TargetPorts,
+                                rule.Protocol, rule.Action, rule.ProxyConfigId);
+                            if (ruleId > 0)
+                                rule.RuleId = ruleId;
+                            else
+                                QueueActivityLog("Rule saved, but the routing core did not accept it (inactive).");
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            QueueActivityLog("ERROR: Failed to add rule");
+                            QueueActivityLog($"Rule saved, but could not register it with the routing core ({ex.Message}).");
                         }
                     }
+                    else
+                    {
+                        QueueActivityLog("Rule saved (routing core unavailable — it will activate once the core is running).");
+                    }
+
+                    rule.Index = ProxyRules.Count + 1;
+                    ProxyRules.Add(rule);
+                    SaveCurrentProfileAsync();
                 },
                 onClose: () => window.Close(),
                 proxyService: _proxyService,
@@ -606,20 +617,28 @@ public class MainWindowViewModel : ViewModelBase
 
             if (_proxyService != null)
             {
-                var ruleId = _proxyService.AddRule(NewProcessName, "*", "*", "TCP", NewProxyAction);
-                if (ruleId > 0)
+                try
                 {
-                    rule.RuleId = ruleId;
-                    ProxyRules.Add(rule);
-                    SaveCurrentProfileAsync();
-                    IsAddRuleViewOpen = false;
-                    NewProcessName = "";
+                    var ruleId = _proxyService.AddRule(NewProcessName, "*", "*", "TCP", NewProxyAction);
+                    if (ruleId > 0)
+                        rule.RuleId = ruleId;
+                    else
+                        QueueActivityLog("Rule saved, but the routing core did not accept it (inactive).");
                 }
-                else
+                catch (Exception ex)
                 {
-                    QueueActivityLog("ERROR: Failed to add rule");
+                    QueueActivityLog($"Rule saved, but could not register it with the routing core ({ex.Message}).");
                 }
             }
+            else
+            {
+                QueueActivityLog("Rule saved (routing core unavailable — it will activate once the core is running).");
+            }
+
+            ProxyRules.Add(rule);
+            SaveCurrentProfileAsync();
+            IsAddRuleViewOpen = false;
+            NewProcessName = "";
         });
 
         CancelAddRuleCommand = new RelayCommand(() =>
