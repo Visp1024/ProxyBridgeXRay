@@ -7,6 +7,7 @@ namespace ProxyBridge.GUI.Services;
 
 [JsonSourceGenerationOptions(WriteIndented = true)]
 [JsonSerializable(typeof(AppSettings))]
+[JsonSerializable(typeof(XRayConfig))]
 internal partial class AppSettingsContext : JsonSerializerContext
 {
 }
@@ -131,4 +132,7 @@ public class AppSettings
     public DateTime LastUpdateCheck { get; set; } = DateTime.MinValue;
     public bool StartWithWindows { get; set; } = false;
     public string ActiveProfileName { get; set; } = ProfileManager.DefaultProfileName;
+
+    // XRay VLESS+Reality tunnel — global, profile-independent.
+    public XRayConfig XRay { get; set; } = new();
 }
