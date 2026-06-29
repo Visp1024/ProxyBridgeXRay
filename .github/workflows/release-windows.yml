@@ -2,15 +2,20 @@ name: Release ProxyBridge Windows
 
 on:
   release:
-    types: [published, created]
+    types: [published]
   workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing release tag to build and attach artifacts to"
+        required: false
+        default: ""
 
 permissions:
   contents: write
 
 jobs:
   build-and-release:
-    runs-on: self-hosted
+    runs-on: windows-latest
     permissions:
       contents: write
       actions: read
@@ -20,18 +25,39 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-    - name: Verify WinDivert installation
+    - name: Resolve release tag
+      id: meta
       run: |
-        if (Test-Path "C:\WinDivert-2.2.2-A") {
-          Write-Host "WinDivert found at C:\WinDivert-2.2.2-A"
-        } else {
-          Write-Error "WinDivert not found. Please install WinDivert 2.2.2-A at C:\WinDivert-2.2.2-A"
-          exit 1
-        }
+        $tag = "${{ github.event.release.tag_name }}"
+        if (-not $tag) { $tag = "${{ github.event.inputs.tag }}" }
+        "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+        Write-Host "Release tag: '$tag'"
       shell: pwsh
 
-    - name: Build and sign project
-      run: .\compile.ps1
+    - name: Setup .NET
+      uses: actions/setup-dotnet@67a3573c9a986a3f9c594539f4ab511d57bb3ce9 # v4
+      with:
+        dotnet-version: '10.0.x'
+
+    - name: Download WinDivert SDK
+      run: |
+        $url = "https://github.com/basil00/WinDivert/releases/download/v2.2.2/WinDivert-2.2.2-A.zip"
+        $expectedHash = "63CB41763BB4B20F600B6DE04E991A9C2BE73279E317D4D82F237B150C5F3F15"
+        Invoke-WebRequest -Uri $url -OutFile "WinDivert.zip" -UseBasicParsing
+        $actualHash = (Get-FileHash "WinDivert.zip" -Algorithm SHA256).Hash
+        if ($actualHash -ne $expectedHash) {
+          Write-Error "WinDivert.zip SHA256 mismatch! Expected: $expectedHash  Got: $actualHash"
+          exit 1
+        }
+        Expand-Archive -Path "WinDivert.zip" -DestinationPath "C:\" -Force
+      shell: pwsh
+
+    - name: Install NSIS
+      run: choco install nsis -y --no-progress
+      shell: pwsh
+
+    - name: Build project (no signing)
+      run: .\compile.ps1 -NoSign
       working-directory: Windows
       shell: pwsh
 
@@ -46,17 +72,20 @@ jobs:
 
     - name: Create portable zip
       run: |
-        $zip = "Windows/output/ProxyBridge-XRay-Portable-${{ github.event.release.tag_name }}.zip"
+        $tag = "${{ steps.meta.outputs.tag }}"
+        if (-not $tag) { $tag = "manual" }
+        $zip = "Windows/output/ProxyBridge-XRay-Portable-$tag.zip"
         $items = Get-ChildItem Windows/output -Exclude *.zip,*Setup*.exe
         Compress-Archive -Path $items.FullName -DestinationPath $zip -Force
         Write-Host "Portable zip: $zip"
       shell: pwsh
 
     - name: Upload installer and portable zip to release
-      if: github.event_name == 'release'
+      if: steps.meta.outputs.tag != ''
       run: |
-        gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem Windows/output/ProxyBridge-XRay-Setup-*.exe) --clobber
-        gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem Windows/output/ProxyBridge-XRay-Portable-*.zip) --clobber
+        $tag = "${{ steps.meta.outputs.tag }}"
+        gh release upload "$tag" (Get-ChildItem Windows/output/ProxyBridge-XRay-Setup-*.exe) --clobber
+        gh release upload "$tag" (Get-ChildItem Windows/output/ProxyBridge-XRay-Portable-*.zip) --clobber
       shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}
@@ -64,6 +93,6 @@ jobs:
     - name: Upload build artifacts
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
       with:
-        name: ProxyBridge-Release-${{ github.event.release.tag_name }}
+        name: ProxyBridge-Release-${{ steps.meta.outputs.tag }}
         path: Windows/output/
         retention-days: 90

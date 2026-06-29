@@ -289,8 +289,20 @@ if ($success) {
     }
 
     Write-Host "`nBuilding installer..." -ForegroundColor Green
-    $nsisPath = "C:\Program Files (x86)\NSIS\Bin\makensis.exe"
-    if (Test-Path $nsisPath) {
+    # Locate makensis.exe across common layouts (installer root vs Bin\) and PATH,
+    # so the build works on dev machines, self-hosted runners and GitHub-hosted CI.
+    $nsisCandidates = @(
+        "C:\Program Files (x86)\NSIS\Bin\makensis.exe",
+        "C:\Program Files (x86)\NSIS\makensis.exe",
+        "C:\Program Files\NSIS\Bin\makensis.exe",
+        "C:\Program Files\NSIS\makensis.exe"
+    )
+    $nsisPath = $nsisCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $nsisPath) {
+        $nsisCmd = Get-Command makensis.exe -ErrorAction SilentlyContinue
+        if ($nsisCmd) { $nsisPath = $nsisCmd.Source }
+    }
+    if ($nsisPath -and (Test-Path $nsisPath)) {
         Push-Location installer
         $result = & $nsisPath "ProxyBridge.nsi" 2>&1
         Pop-Location
