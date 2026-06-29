@@ -20,7 +20,7 @@ public class MainWindowViewModel : ViewModelBase
     private const int MAX_CONNECTION_LOG_LINES = 100;
     private const int MAX_ACTIVITY_LOG_LINES = 100;
 
-    private string _title = "ProxyBridge";
+    private string _title = "ProxyBridge XRay";
     private int _selectedTabIndex;
     private string _connectionsLog = "";
     private string _activityLog = "";
@@ -706,7 +706,7 @@ public class MainWindowViewModel : ViewModelBase
             {
                 _activeProfileName = newName;
                 ActiveProfileName = newName;
-                Title = $"ProxyBridge - {newName}";
+                Title = $"ProxyBridge XRay - {newName}";
                 UpdateSettingsProfile(newName);
                 RefreshProfileList();
                 QueueActivityLog($"Profile renamed to: {newName}");
@@ -1232,7 +1232,7 @@ public class MainWindowViewModel : ViewModelBase
 
             _activeProfileName = profileName;
             ActiveProfileName = profileName;
-            Title = $"ProxyBridge - {profileName}";
+            Title = $"ProxyBridge XRay - {profileName}";
 
             var profile = ProfileManager.LoadProfile(profileName);
 
@@ -1320,7 +1320,7 @@ public class MainWindowViewModel : ViewModelBase
         var profile = ProfileManager.LoadProfile(name);
         _activeProfileName = name;
         ActiveProfileName = name;
-        Title = $"ProxyBridge - {name}";
+        Title = $"ProxyBridge XRay - {name}";
 
         _localhostViaProxy = profile.LocalhostViaProxy;
         OnPropertyChanged(nameof(LocalhostViaProxy));

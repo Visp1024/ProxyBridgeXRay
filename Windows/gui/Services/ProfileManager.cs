@@ -107,7 +107,7 @@ public static class ProfileManager
 
     private static readonly string ProfilesDirectory = Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-        "ProxyBridge".TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
+        "ProxyBridgeXRay".TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar),
         "profiles".TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar)
     );
 

@@ -5,16 +5,16 @@
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>ProxyBridge</AssemblyName>
+    <AssemblyName>ProxyBridgeXRay</AssemblyName>
     <RootNamespace>ProxyBridge.GUI</RootNamespace>
     <Version>4.0.0</Version>
     <AssemblyVersion>4.0.0</AssemblyVersion>
     <FileVersion>4.0.0</FileVersion>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
-    <Company>InterceptSuite</Company>
-    <Product>ProxyBridge</Product>
-    <Copyright>Copyright © 2026 InterceptSuite</Copyright>
-    <Description>Universal proxy client for Windows applications</Description>
+    <Company>Visp1024</Company>
+    <Product>ProxyBridge XRay</Product>
+    <Copyright>Copyright © 2026 Visp1024</Copyright>
+    <Description>ProxyBridge with XRay VLESS+Reality — Windows proxy client</Description>
     <NeutralLanguage>en-US</NeutralLanguage>
     <PublishAot>true</PublishAot>
     <InvariantGlobalization>false</InvariantGlobalization>

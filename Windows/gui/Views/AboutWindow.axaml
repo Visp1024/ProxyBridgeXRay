@@ -20,7 +20,7 @@
         <Border Grid.Row="0" Background="#FF252526" BorderBrush="#FF007ACC" BorderThickness="0,0,0,1" Padding="20,16">
             <StackPanel Orientation="Horizontal" Spacing="12">
                 <TextBlock Text="ℹ" FontSize="24" Foreground="#FF007ACC" VerticalAlignment="Center"/>
-                <TextBlock Text="About ProxyBridge"
+                <TextBlock Text="About ProxyBridge XRay"
                            FontSize="18"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center"/>
@@ -29,7 +29,7 @@
 
         <!-- Content -->
         <StackPanel Grid.Row="1" Margin="32,24" Spacing="16">
-            <TextBlock Text="ProxyBridge"
+            <TextBlock Text="ProxyBridge XRay"
                        FontSize="28"
                        FontWeight="Bold"
                        HorizontalAlignment="Center"
@@ -40,7 +40,7 @@
                        HorizontalAlignment="Center"
                        Foreground="#FFB0B0B0"/>
 
-            <TextBlock Text="Universal proxy client for Windows applications"
+            <TextBlock Text="Windows proxy client with XRay VLESS+Reality"
                        FontSize="14"
                        HorizontalAlignment="Center"
                        Foreground="#FFB0B0B0"
@@ -48,7 +48,7 @@
                        Margin="0,0,0,8"/>
 
 
-            <TextBlock Text="Author: Sourav Kalal / InterceptSuite"
+            <TextBlock Text="Fork by Visp1024 · Original: Sourav Kalal / InterceptSuite"
                        FontSize="13"
                        HorizontalAlignment="Center"
                        Foreground="#FFB0B0B0"
@@ -67,7 +67,7 @@
 
                 <TextBlock HorizontalAlignment="Center">
                     <Run Text="GitHub: " Foreground="#FFB0B0B0"/>
-                    <TextBlock Text="github.com/InterceptSuite/ProxyBridge"
+                    <TextBlock Text="github.com/Visp1024/ProxyBridgeXRay"
                                Foreground="#FF007ACC"
                                TextDecorations="Underline"
                                Cursor="Hand"

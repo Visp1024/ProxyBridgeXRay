@@ -37,7 +37,7 @@ public static class XRayDownloadService
         {
             return Path.Combine(
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                "ProxyBridge");
+                "ProxyBridgeXRay");
         }
     }
 

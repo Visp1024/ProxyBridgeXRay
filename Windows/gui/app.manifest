@@ -3,10 +3,10 @@
   <assemblyIdentity
     version="4.0.0.0"
     processorArchitecture="*"
-    name="ProxyBridge"
+    name="ProxyBridgeXRay"
     type="win32"
   />
-  <description>ProxyBridge - Network Traffic Proxy Control</description>
+  <description>ProxyBridge XRay - Proxy Control with XRay VLESS+Reality</description>
   <trustInfo xmlns="urn:schemas-microsoft-com:asm.v3">
     <security>
       <requestedPrivileges>

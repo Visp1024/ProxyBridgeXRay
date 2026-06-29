@@ -19,7 +19,7 @@ public partial class AboutWindow : Window
 
     private void OnGitHubClick(object? sender, PointerPressedEventArgs e)
     {
-        OpenUrl("https://github.com/InterceptSuite/ProxyBridge");
+        OpenUrl("https://github.com/Visp1024/ProxyBridgeXRay");
     }
 
     private void OpenUrl(string url)

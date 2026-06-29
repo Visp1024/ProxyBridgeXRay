@@ -214,8 +214,8 @@ if ($success) {
         Write-Host "`nCopying GUI files to output..." -ForegroundColor Green
         $guiPublishPath = "gui\bin\Release\net10.0-windows\win-x64\publish"
 
-        Copy-Item "$guiPublishPath\ProxyBridge.exe" -Destination $OutputDir -Force
-        Write-Host "  Copied: ProxyBridge.exe" -ForegroundColor Gray
+        Copy-Item "$guiPublishPath\ProxyBridgeXRay.exe" -Destination $OutputDir -Force
+        Write-Host "  Copied: ProxyBridgeXRay.exe" -ForegroundColor Gray
 
         Get-ChildItem "$guiPublishPath\*.dll" | ForEach-Object {
             Copy-Item $_.FullName -Destination $OutputDir -Force
@@ -239,15 +239,15 @@ if ($success) {
                    "cli\main.c " +
                    "/link /LTCG /OPT:REF /OPT:ICF /RELEASE /DYNAMICBASE /NXCOMPAT /SUBSYSTEM:CONSOLE " +
                    "winhttp.lib shell32.lib advapi32.lib " +
-                   "/OUT:ProxyBridge_CLI.exe"
+                   "/OUT:ProxyBridgeXRay_CLI.exe"
 
         $cliCmd = "`"$script:foundVcvarsPath`" $script:foundArch >nul && cl.exe $cliArgs"
         Write-Host "Command: cl.exe $cliArgs" -ForegroundColor Gray
 
         $cliOut = cmd /c $cliCmd '2>&1'
         if ($LASTEXITCODE -eq 0) {
-            Move-Item "ProxyBridge_CLI.exe" -Destination $OutputDir -Force
-            Write-Host "  CLI built: ProxyBridge_CLI.exe" -ForegroundColor Gray
+            Move-Item "ProxyBridgeXRay_CLI.exe" -Destination $OutputDir -Force
+            Write-Host "  CLI built: ProxyBridgeXRay_CLI.exe" -ForegroundColor Gray
             Remove-Item "*.obj" -Force -ErrorAction SilentlyContinue
         } else {
             Write-Host "  CLI build failed!" -ForegroundColor Red

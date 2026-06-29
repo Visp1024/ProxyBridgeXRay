@@ -2,7 +2,8 @@
   !define PRODUCT_VERSION "4.0.0"
 !endif
 
-!define PRODUCT_NAME "ProxyBridge"
+!define PRODUCT_NAME "ProxyBridge XRay"
+!define PRODUCT_EXE "ProxyBridgeXRay.exe"
 !define PRODUCT_PUBLISHER "Visp1024"
 !define PRODUCT_WEB_SITE "https://github.com/Visp1024/ProxyBridgeXRay"
 !define PRODUCT_UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\${PRODUCT_NAME}"
@@ -47,14 +48,11 @@ RequestExecutionLevel admin
 !insertmacro MUI_LANGUAGE "English"
 
 Section "MainSection" SEC01
-  ; Kill any running ProxyBridge instance before overwriting files.
-  ; This prevents "file in use" errors on update/reinstall.
-  nsExec::ExecToLog 'taskkill /F /IM ProxyBridge.exe'
-  nsExec::ExecToLog 'taskkill /F /IM ProxyBridge_CLI.exe'
-  ; Stop and unload the WinDivert driver so WinDivert64.sys can be replaced.
-  nsExec::ExecToLog 'sc stop WinDivert'
-  nsExec::ExecToLog 'sc delete WinDivert'
-  DeleteRegKey HKLM "SYSTEM\CurrentControlSet\Services\WinDivert"
+  ; Kill only this fork's running instances before overwriting files.
+  ; We intentionally do NOT touch the shared WinDivert driver here so that an
+  ; original ProxyBridge running in parallel keeps working during our install.
+  nsExec::ExecToLog 'taskkill /F /IM ${PRODUCT_EXE}'
+  nsExec::ExecToLog 'taskkill /F /IM ProxyBridgeXRay_CLI.exe'
 
   ; Brief pause to let the OS release all file handles.
   Sleep 1000
@@ -66,8 +64,8 @@ Section "MainSection" SEC01
   File /r "..\output\*.*"
 
   CreateDirectory "$SMPROGRAMS\${PRODUCT_NAME}"
-  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\ProxyBridge.exe"
-  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\ProxyBridge.exe"
+  CreateShortCut "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk" "$INSTDIR\${PRODUCT_EXE}"
+  CreateShortCut "$DESKTOP\${PRODUCT_NAME}.lnk" "$INSTDIR\${PRODUCT_EXE}"
 
   ; Add to PATH using EnVar plugin
   EnVar::SetHKLM
@@ -82,7 +80,7 @@ Section -Post
   WriteUninstaller "$INSTDIR\uninst.exe"
   WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayName" "$(^Name)"
   WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "UninstallString" "$INSTDIR\uninst.exe"
-  WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\ProxyBridge.exe"
+  WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayIcon" "$INSTDIR\${PRODUCT_EXE}"
   WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "DisplayVersion" "${PRODUCT_VERSION}"
   WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "URLInfoAbout" "${PRODUCT_WEB_SITE}"
   WriteRegStr HKLM "${PRODUCT_UNINST_KEY}" "Publisher" "${PRODUCT_PUBLISHER}"
@@ -90,8 +88,8 @@ Section -Post
 SectionEnd
 
 Section Uninstall
-  ; Stop a running instance before removing files.
-  nsExec::ExecToLog 'taskkill /F /IM ProxyBridge.exe'
+  ; Stop only this fork's running instance before removing files.
+  nsExec::ExecToLog 'taskkill /F /IM ${PRODUCT_EXE}'
   Sleep 500
 
   Delete "$SMPROGRAMS\${PRODUCT_NAME}\${PRODUCT_NAME}.lnk"
@@ -107,11 +105,8 @@ Section Uninstall
   ; Broadcast environment change
   SendMessage ${HWND_BROADCAST} ${WM_WININICHANGE} 0 "STR:Environment" /TIMEOUT=5000
 
-  ; Stop and remove the WinDivert kernel driver service so a future reinstall
-  ; doesn't inherit a stale/disabled entry (error 1058).
-  nsExec::ExecToLog 'sc stop WinDivert'
-  nsExec::ExecToLog 'sc delete WinDivert'
-  DeleteRegKey HKLM "SYSTEM\CurrentControlSet\Services\WinDivert"
+  ; NOTE: the shared WinDivert kernel driver is intentionally left installed.
+  ; It may still be in use by an original ProxyBridge running in parallel.
 
   DeleteRegKey ${PRODUCT_UNINST_ROOT_KEY} "${PRODUCT_UNINST_KEY}"
   SetAutoClose true
