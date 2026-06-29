@@ -44,10 +44,19 @@ jobs:
         }
       shell: pwsh
 
-    - name: Upload installer to release
+    - name: Create portable zip
+      run: |
+        $zip = "Windows/output/ProxyBridge-XRay-Portable-${{ github.event.release.tag_name }}.zip"
+        $items = Get-ChildItem Windows/output -Exclude *.zip,*Setup*.exe
+        Compress-Archive -Path $items.FullName -DestinationPath $zip -Force
+        Write-Host "Portable zip: $zip"
+      shell: pwsh
+
+    - name: Upload installer and portable zip to release
       if: github.event_name == 'release'
       run: |
-        gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem Windows/output/ProxyBridge-Setup-*.exe) --clobber
+        gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem Windows/output/ProxyBridge-XRay-Setup-*.exe) --clobber
+        gh release upload "${{ github.event.release.tag_name }}" (Get-ChildItem Windows/output/ProxyBridge-XRay-Portable-*.zip) --clobber
       shell: pwsh
       env:
         GH_TOKEN: ${{ github.token }}

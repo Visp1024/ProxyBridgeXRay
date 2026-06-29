@@ -299,7 +299,7 @@ if ($success) {
             # Derive installer name from the version defined in the NSI file
             $nsiContent = Get-Content "installer\ProxyBridge.nsi" -Raw -ErrorAction SilentlyContinue
             $installerVersion = if ($nsiContent -match '!define PRODUCT_VERSION "([^"]+)"') { $Matches[1] } else { "0.0.0" }
-            $installerName = "ProxyBridge-Setup-$installerVersion.exe"
+            $installerName = "ProxyBridge-XRay-Setup-$installerVersion.exe"
             if (Test-Path "installer\$installerName") {
                 Move-Item "installer\$installerName" -Destination $OutputDir -Force
                 Write-Host "  Moved: $installerName -> $OutputDir\" -ForegroundColor Gray
