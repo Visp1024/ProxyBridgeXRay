@@ -40,6 +40,14 @@ public class MainWindowViewModel : ViewModelBase
     private readonly SettingsService _settingsService = new();
     private string _activeProfileName = ProfileManager.DefaultProfileName;
 
+    // XRay VLESS+Reality tunnel (global, profile-independent config in AppSettings)
+    private readonly XRayService _xRayService = new();
+    private XRayConfig _xRayConfig = new();
+    private bool _isXRayRunning;
+    private string _xRayStatusText = "XRay: Stopped";
+    private uint _xRayManagedConfigId;
+    private const string XRayConfigHost = "127.0.0.1";
+
     public ObservableCollection<ProxyConfig> ProxyConfigs { get; } = new();
     public ObservableCollection<ProxyRule> ProxyRules { get; } = new();
     public ObservableCollection<string> SwitchProfileItems { get; } = new();
@@ -181,6 +189,9 @@ public class MainWindowViewModel : ViewModelBase
         }
 
         _ = CheckForUpdatesOnStartupAsync();
+
+        if (_xRayConfig.AutoStartXRay)
+            _ = TryAutoStartXRayAsync();
     }
 
     public string Title
@@ -351,6 +362,7 @@ public class MainWindowViewModel : ViewModelBase
     private string _currentLanguage = "en";
     private string _englishCheckmark = "✓";
     private string _chineseCheckmark = "";
+    private string _russianCheckmark = "";
 
     public string EnglishCheckmark
     {
@@ -362,6 +374,26 @@ public class MainWindowViewModel : ViewModelBase
     {
         get => _chineseCheckmark;
         set => SetProperty(ref _chineseCheckmark, value);
+    }
+
+    public string RussianCheckmark
+    {
+        get => _russianCheckmark;
+        set => SetProperty(ref _russianCheckmark, value);
+    }
+
+    public bool IsXRayRunning
+    {
+        get => _isXRayRunning;
+        private set { if (SetProperty(ref _isXRayRunning, value)) OnPropertyChanged(nameof(IsXRayStopped)); }
+    }
+
+    public bool IsXRayStopped => !_isXRayRunning;
+
+    public string XRayStatusText
+    {
+        get => _xRayStatusText;
+        private set => SetProperty(ref _xRayStatusText, value);
     }
 
     public bool StartWithWindows
@@ -394,6 +426,9 @@ public class MainWindowViewModel : ViewModelBase
     public ICommand ImportProfileCommand { get; }
     public ICommand ExportProfileCommand { get; }
     public ICommand SwitchProfileCommand { get; }
+    public ICommand ShowXRaySettingsCommand { get; }
+    public ICommand StartXRayCommand { get; }
+    public ICommand StopXRayCommand { get; }
 
     public MainWindowViewModel()
     {
@@ -791,6 +826,147 @@ public class MainWindowViewModel : ViewModelBase
                 QueueActivityLog($"Export failed: {ex.Message}");
             }
         });
+
+        ShowXRaySettingsCommand = new RelayCommand(async () =>
+        {
+            var window = new XRaySettingsWindow();
+            var viewModel = new XRaySettingsViewModel(
+                initial: _xRayConfig,
+                onSave: (cfg) =>
+                {
+                    _xRayConfig = cfg;
+                    SaveXRayConfig();
+                    window.Close();
+                },
+                onCancel: () => window.Close());
+            window.DataContext = viewModel;
+
+            if (_mainWindow != null)
+                await window.ShowDialog(_mainWindow);
+        });
+
+        StartXRayCommand = new RelayCommand(async () =>
+        {
+            if (_isXRayRunning) return;
+
+            // If the xray binary is missing, offer to download it.
+            if (XRayService.FindXRayExecutable(_xRayConfig.XRayPath) == null)
+            {
+                var downloadWindow = new XRayDownloadWindow();
+                var downloadVm = new XRayDownloadViewModel();
+                downloadWindow.DataContext = downloadVm;
+
+                if (_mainWindow != null)
+                    await downloadWindow.ShowDialog(_mainWindow);
+
+                if (downloadVm.DownloadedPath == null)
+                    return; // cancelled or failed
+
+                _xRayConfig.XRayPath = downloadVm.DownloadedPath;
+                SaveXRayConfig();
+            }
+
+            if (_xRayService.Start(_xRayConfig))
+            {
+                IsXRayRunning = true;
+                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+                EnsureXRayProxyConfig();
+            }
+        });
+
+        StopXRayCommand = new RelayCommand(() =>
+        {
+            if (!_isXRayRunning) return;
+
+            _xRayService.Stop();
+            IsXRayRunning = false;
+            XRayStatusText = "XRay: Stopped";
+            RemoveXRayProxyConfig();
+        });
+
+        _xRayService.LogReceived += msg =>
+        {
+            lock (_activityLogLock)
+                _pendingActivityLogs.Add($"[{DateTime.Now:HH:mm:ss}] {msg}\n");
+        };
+
+        _xRayService.Stopped += _ =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_isXRayRunning)
+                {
+                    IsXRayRunning = false;
+                    XRayStatusText = "XRay: Stopped (crashed)";
+                    RemoveXRayProxyConfig();
+                }
+            });
+        };
+    }
+
+    private void SaveXRayConfig()
+    {
+        var settings = _settingsService.LoadSettings();
+        settings.XRay = _xRayConfig;
+        _settingsService.SaveSettings(settings);
+    }
+
+    // XRay is exposed to the routing core as a managed local SOCKS5 proxy config.
+    // Rules target it through the normal Proxy Rules UI.
+    private void EnsureXRayProxyConfig()
+    {
+        if (_proxyService == null) return;
+        if (!ushort.TryParse(_xRayConfig.LocalPort, out var port)) return;
+
+        var existing = ProxyConfigs.FirstOrDefault(p =>
+            p.Host == XRayConfigHost && p.Port == _xRayConfig.LocalPort &&
+            string.Equals(p.Type, "SOCKS5", StringComparison.OrdinalIgnoreCase));
+        if (existing != null) { _xRayManagedConfigId = existing.Id; return; }
+
+        uint nativeId = _proxyService.AddProxyConfig("SOCKS5", XRayConfigHost, port, "", "");
+        if (nativeId == 0) return;
+        _xRayManagedConfigId = nativeId;
+        ProxyConfigs.Add(new ProxyConfig { Id = nativeId, Type = "SOCKS5", Host = XRayConfigHost, Port = _xRayConfig.LocalPort });
+        SaveCurrentProfileAsync();
+    }
+
+    private void RemoveXRayProxyConfig()
+    {
+        if (_xRayManagedConfigId == 0) return;
+        var pc = ProxyConfigs.FirstOrDefault(p => p.Id == _xRayManagedConfigId);
+        if (pc != null)
+        {
+            ProxyConfigs.Remove(pc);
+            _proxyService?.DeleteProxyConfig(_xRayManagedConfigId);
+            SaveCurrentProfileAsync();
+        }
+        _xRayManagedConfigId = 0;
+    }
+
+    private async Task TryAutoStartXRayAsync()
+    {
+        await Task.Delay(800);
+
+        if (string.IsNullOrWhiteSpace(_xRayConfig.ServerAddress) ||
+            string.IsNullOrWhiteSpace(_xRayConfig.Uuid) ||
+            string.IsNullOrWhiteSpace(_xRayConfig.PublicKey))
+            return;
+
+        if (XRayService.FindXRayExecutable(_xRayConfig.XRayPath) == null)
+        {
+            QueueActivityLog("XRay auto-start skipped: binary not found");
+            return;
+        }
+
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            if (_xRayService.Start(_xRayConfig))
+            {
+                IsXRayRunning = true;
+                XRayStatusText = $"XRay: Running  ·  SOCKS5 :{_xRayConfig.LocalPort}  ·  HTTP :{_xRayConfig.HttpPort}";
+                EnsureXRayProxyConfig();
+            }
+        });
     }
 
     public void ChangeLanguage(string languageCode)
@@ -800,6 +976,7 @@ public class MainWindowViewModel : ViewModelBase
         _currentLanguage = languageCode;
         EnglishCheckmark = languageCode == "en" ? "✓" : "";
         ChineseCheckmark = languageCode == "zh" ? "✓" : "";
+        RussianCheckmark = languageCode == "ru" ? "✓" : "";
         _loc.CurrentCulture = new System.Globalization.CultureInfo(languageCode);
         SaveCurrentProfileAsync();
     }
@@ -835,6 +1012,7 @@ public class MainWindowViewModel : ViewModelBase
     public void Cleanup()
     {
         try { _saveCts?.Cancel(); _saveCts?.Dispose(); _saveCts = null; } catch { }
+        try { _xRayService.Dispose(); } catch { }
         try { SaveCurrentProfile(); } catch { }
         try { _proxyService?.Dispose(); _proxyService = null; } catch { }
     }
@@ -1046,6 +1224,7 @@ public class MainWindowViewModel : ViewModelBase
         {
             var settings = _settingsService.LoadSettings();
             StartWithWindows = settings.StartWithWindows && _settingsService.IsStartupEnabled();
+            _xRayConfig = settings.XRay ?? new XRayConfig();
 
             var profileName = settings.ActiveProfileName;
             if (!ProfileManager.ProfileExists(profileName))
@@ -1078,6 +1257,7 @@ public class MainWindowViewModel : ViewModelBase
                 _loc.CurrentCulture = new System.Globalization.CultureInfo(profile.Language);
                 EnglishCheckmark = profile.Language == "en" ? "✓" : "";
                 ChineseCheckmark = profile.Language == "zh" ? "✓" : "";
+                RussianCheckmark = profile.Language == "ru" ? "✓" : "";
             }
 
             if (profile.ProxyConfigs != null)
@@ -1168,6 +1348,7 @@ public class MainWindowViewModel : ViewModelBase
             _loc.CurrentCulture = new System.Globalization.CultureInfo(profile.Language);
             EnglishCheckmark = profile.Language == "en" ? "✓" : "";
             ChineseCheckmark = profile.Language == "zh" ? "✓" : "";
+            RussianCheckmark = profile.Language == "ru" ? "✓" : "";
         }
 
         var configIdMap = new Dictionary<uint, uint>();
@@ -1230,6 +1411,12 @@ public class MainWindowViewModel : ViewModelBase
 
             ProxyRules.Add(rule);
         }
+
+        // Native proxy configs were rebuilt for the new profile, so the managed
+        // XRay config (and its id) must be re-registered while XRay is running.
+        _xRayManagedConfigId = 0;
+        if (_isXRayRunning)
+            EnsureXRayProxyConfig();
 
         UpdateSettingsProfile(name);
         RefreshProfileList();

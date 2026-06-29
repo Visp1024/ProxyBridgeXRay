@@ -228,6 +228,12 @@
                         </MenuItem.Icon>
                     </MenuItem>
                 </MenuItem>
+                <MenuItem Header="XRay">
+                    <MenuItem Header="{Binding Loc.MenuXRaySettings}" Command="{Binding ShowXRaySettingsCommand}"/>
+                    <Separator/>
+                    <MenuItem Header="{Binding Loc.MenuStartXRay}" Command="{Binding StartXRayCommand}" IsVisible="{Binding IsXRayStopped}"/>
+                    <MenuItem Header="{Binding Loc.MenuStopXRay}" Command="{Binding StopXRayCommand}" IsVisible="{Binding IsXRayRunning}"/>
+                </MenuItem>
                 <MenuItem Header="{Binding Loc.MenuSettings}">
                     <MenuItem Header="{Binding Loc.MenuCloseToTray}"
                               Command="{Binding ToggleCloseToTrayCommand}">
@@ -268,6 +274,11 @@
                                 <TextBlock Text="{Binding ChineseCheckmark}" FontSize="14"/>
                             </MenuItem.Icon>
                         </MenuItem>
+                        <MenuItem Header="Русский (Russian)" Click="OnChangeLanguageRussian">
+                            <MenuItem.Icon>
+                                <TextBlock Text="{Binding RussianCheckmark}" FontSize="14"/>
+                            </MenuItem.Icon>
+                        </MenuItem>
                     </MenuItem>
                 </MenuItem>
                 <MenuItem Header="{Binding Loc.MenuProfile}">
@@ -300,6 +311,19 @@
                             Content="📋"/>
                 </StackPanel>
             </Grid>
+
+            <!-- Status bar (XRay tunnel state) -->
+            <Border DockPanel.Dock="Bottom" Background="#FF1A1A1A" BorderBrush="#FF3F3F46"
+                    BorderThickness="0,1,0,0" Padding="12,4">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="6">
+                    <Panel Width="8" Height="8" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="#FF4CAF50" IsVisible="{Binding IsXRayRunning}"/>
+                        <Ellipse Width="8" Height="8" Fill="#FF6E6E6E" IsVisible="{Binding IsXRayStopped}"/>
+                    </Panel>
+                    <TextBlock Text="{Binding XRayStatusText}" Foreground="#FFB0B0B0" FontSize="12"
+                               VerticalAlignment="Center"/>
+                </StackPanel>
+            </Border>
 
             <!-- Tab Control -->
             <TabControl SelectedIndex="{Binding SelectedTabIndex}" Background="#FF1E1E1E" Padding="0">
