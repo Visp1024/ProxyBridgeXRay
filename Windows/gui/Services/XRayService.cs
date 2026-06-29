@@ -32,7 +32,10 @@ public class XRayService : IDisposable
                 if (!int.TryParse(config.LocalPort, out int localPort)) localPort = 10808;
                 if (!int.TryParse(config.HttpPort,  out int httpPort))  httpPort  = 10809;
 
-                // If either port is busy, try to kill any lingering xray process first.
+                // Good-neighbour port check: never kill foreign xray processes
+                // (another app — or a second ProxyBridge — may legitimately run
+                // its own tunnel). If our configured ports are taken, report it
+                // and let the user pick different ports in XRay settings.
                 bool socksBlocked = !IsPortAvailable(localPort);
                 bool httpBlocked  = !IsPortAvailable(httpPort);
 
@@ -42,29 +45,17 @@ public class XRayService : IDisposable
                         ? $"{localPort} and {httpPort}"
                         : socksBlocked ? $"{localPort}" : $"{httpPort}";
 
-                    LogReceived?.Invoke($"XRay: port(s) {blocked} in use — attempting to free them…");
-                    KillLingeringXRay();
-                    Thread.Sleep(600);
-
-                    socksBlocked = !IsPortAvailable(localPort);
-                    httpBlocked  = !IsPortAvailable(httpPort);
-
-                    if (socksBlocked || httpBlocked)
-                    {
-                        var still = socksBlocked && httpBlocked
-                            ? $"{localPort} and {httpPort}"
-                            : socksBlocked ? $"{localPort}" : $"{httpPort}";
-
-                        LogReceived?.Invoke(
-                            $"XRay ERROR: port(s) {still} still occupied by another process. " +
-                            $"Free the port(s) or change them in XRay settings.");
-                        return false;
-                    }
-
-                    LogReceived?.Invoke("XRay: ports are now free.");
+                    LogReceived?.Invoke(
+                        $"XRay ERROR: local port(s) {blocked} already in use. " +
+                        $"To run alongside another xray instance, set different " +
+                        $"SOCKS5/HTTP ports in XRay settings.");
+                    return false;
                 }
 
-                _configFilePath = Path.Combine(Path.GetTempPath(), "proxybridge_xray.json");
+                // Per-instance config file so two ProxyBridge instances don't
+                // overwrite each other's xray configuration.
+                _configFilePath = Path.Combine(
+                    Path.GetTempPath(), $"proxybridge_xray_{Environment.ProcessId}.json");
                 File.WriteAllText(_configFilePath, GenerateXRayConfig(config), new UTF8Encoding(false));
 
                 var xrayPath = ResolveXRayPath(config.XRayPath);
@@ -169,24 +160,6 @@ public class XRayService : IDisposable
         {
             return false;
         }
-    }
-
-    private static void KillLingeringXRay()
-    {
-        try
-        {
-            foreach (var proc in Process.GetProcessesByName("xray"))
-            {
-                try
-                {
-                    proc.Kill(entireProcessTree: true);
-                    proc.WaitForExit(2000);
-                }
-                catch { }
-                finally { proc.Dispose(); }
-            }
-        }
-        catch { }
     }
 
     private static string? ResolveXRayPath(string configuredPath)
