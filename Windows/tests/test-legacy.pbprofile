@@ -1,0 +1,13 @@
+{
+  "Version": "1.0",
+  "Name": "test-legacy",
+  "LocalhostViaProxy": false,
+  "IsTrafficLoggingEnabled": true,
+  "ProxyConfigs": [
+    { "Id": 1, "Type": "SOCKS5", "Host": "127.0.0.1", "Port": "11080", "Username": "", "Password": "" }
+  ],
+  "ProxyRules": [
+    { "ProcessName": "python*.exe", "TargetHosts": "*", "TargetPorts": "15301-15303",
+      "Protocol": "UDP", "Action": "PROXY", "IsEnabled": true, "ProxyConfigId": 1 }
+  ]
+}

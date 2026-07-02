@@ -5,6 +5,7 @@
 *.sys
 *.zip
 *.py
+!Windows/tests/*.py
 build/**
 *.pyc
 Windows/gui/bin/**

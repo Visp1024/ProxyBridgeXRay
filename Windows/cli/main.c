@@ -4,6 +4,7 @@
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+#include <shellapi.h>
 #include <winhttp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +28,7 @@ typedef uint32_t (*pfnAddRule)(const char* process, const char* hosts,
                                const char* ports, int protocol, int action,
                                uint32_t config_id);
 typedef int  (*pfnDisableRule)(uint32_t rule_id);
+typedef BOOL     (*pfnSetRuleFullCone)(uint32_t rule_id, BOOL enable);
 typedef void (*pfnSetLogCallback)(void (*cb)(const char*));
 typedef void (*pfnSetConnectionCallback)(void (*cb)(const char*, DWORD,
                                           const char*, uint16_t, const char*));
@@ -35,9 +37,10 @@ typedef void (*pfnSetTrafficLogging)(int enable);
 typedef int  (*pfnStart)(void);
 typedef int  (*pfnStop)(void);
 
-static pfnAddProxyConfig        g_AddProxyConfig = NULL;
-static pfnAddRule               g_AddRule        = NULL;
-static pfnDisableRule           g_DisableRule    = NULL;
+static pfnAddProxyConfig        g_AddProxyConfig  = NULL;
+static pfnAddRule               g_AddRule         = NULL;
+static pfnDisableRule           g_DisableRule     = NULL;
+static pfnSetRuleFullCone       g_SetRuleFullCone = NULL;
 static pfnSetLogCallback        g_SetLog         = NULL;
 static pfnSetConnectionCallback g_SetConn        = NULL;
 static pfnSetLocalhostViaProxy  g_SetLocalhost   = NULL;
@@ -64,6 +67,7 @@ typedef struct {
     int      action;          // 0=PROXY, 1=DIRECT, 2=BLOCK
     int      is_enabled;
     uint32_t proxy_config_id; // maps to PBProxyConfig.profile_id
+    int      full_cone;
 } PBRule;
 
 typedef struct {
@@ -384,6 +388,7 @@ static bool load_profile(const char* path, PBProfile* prof)
 
             r->is_enabled      = jbool(buf, "IsEnabled", true) ? 1 : 0;
             r->proxy_config_id = (uint32_t)jint(buf, "ProxyConfigId", 0);
+            r->full_cone       = jbool(buf, "FullConeUdp", false) ? 1 : 0;
 
             free(buf);
             prof->num_rules++;
@@ -438,6 +443,8 @@ static bool load_dll(void)
     LOAD_FN(pfnSetTrafficLogging,     g_SetTraffic,     "ProxyBridge_SetTrafficLoggingEnabled");
     LOAD_FN(pfnStart,                 g_Start,          "ProxyBridge_Start");
     LOAD_FN(pfnStop,                  g_Stop,           "ProxyBridge_Stop");
+
+    g_SetRuleFullCone = (pfnSetRuleFullCone)GetProcAddress(g_hDll, "ProxyBridge_SetRuleFullCone");
 
     return true;
 }
@@ -760,6 +767,12 @@ static void do_update(void)
 // ── main ──────────────────────────────────────────────────────────────────────
 int main(int argc, char* argv[])
 {
+    // Disable output buffering so printf is visible immediately when stdout is
+    // piped or redirected (the default "fully buffered" mode loses all output
+    // when the process is killed before a normal exit flushes the buffer).
+    setvbuf(stdout, NULL, _IONBF, 0);
+    setvbuf(stderr, NULL, _IONBF, 0);
+
     bool do_upd       = false;
     char profile_path[MAX_PATH] = {0};
 
@@ -936,12 +949,16 @@ int main(int argc, char* argv[])
         if (!r->is_enabled)
             g_DisableRule(rid);
 
+        if (r->full_cone && g_SetRuleFullCone)
+            g_SetRuleFullCone(rid, TRUE);
+
         int p = r->protocol < 3 ? r->protocol : 0;
         int a = r->action    < 3 ? r->action    : 0;
-        printf("  [%d] %-28s %-22s %-14s %s  %s%s\n",
+        printf("  [%d] %-28s %-22s %-14s %s  %s%s%s\n",
                i + 1, proc, hosts, ports,
                PROTO[p], ACTION[a],
-               r->is_enabled ? "" : "  [disabled]");
+               r->is_enabled ? "" : "  [disabled]",
+               r->full_cone ? "  [fullcone]" : "");
         ok++;
     }
     printf("  %d added, %d failed\n", ok, fail);
