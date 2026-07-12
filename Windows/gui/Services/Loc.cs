@@ -156,6 +156,8 @@ public class Loc : INotifyPropertyChanged
     public string PlaceholderServerAddress => Resources.Resources.PlaceholderServerAddress;
     public string XRaySectionAuth       => Resources.Resources.XRaySectionAuth;
     public string LabelFlow             => Resources.Resources.LabelFlow;
+    public string LabelFullConeUdp      => Resources.Resources.LabelFullConeUdp;
+    public string TooltipFullConeUdp    => Resources.Resources.TooltipFullConeUdp;
     public string XRaySectionReality    => Resources.Resources.XRaySectionReality;
     public string LabelSni              => Resources.Resources.LabelSni;
     public string PlaceholderSni        => Resources.Resources.PlaceholderSni;

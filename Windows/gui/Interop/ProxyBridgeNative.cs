@@ -96,6 +96,10 @@ public static class ProxyBridgeNative
         uint proxyConfigId);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static extern bool ProxyBridge_SetRuleFullCone(uint ruleId, [MarshalAs(UnmanagedType.Bool)] bool enable);
+
+    [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint ProxyBridge_GetRulePosition(uint ruleId);
 
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]

@@ -25,6 +25,7 @@ public class ProxyRulesViewModel : ViewModelBase
     private string _newTargetHosts = "*";
     private string _newTargetPorts = "*";
     private string _newProtocol = "TCP"; // TCP, UDP, or BOTH
+    private bool _newFullConeUdp;
     private RuleActionItem? _selectedRuleAction;
     private string _processNameError = "";
     private Action<ProxyRule>? _onAddRule;
@@ -68,6 +69,12 @@ public class ProxyRulesViewModel : ViewModelBase
     {
         get => _newProtocol;
         set => SetProperty(ref _newProtocol, value);
+    }
+
+    public bool NewFullConeUdp
+    {
+        get => _newFullConeUdp;
+        set => SetProperty(ref _newFullConeUdp, value);
     }
 
     public RuleActionItem? SelectedRuleAction
@@ -121,6 +128,7 @@ public class ProxyRulesViewModel : ViewModelBase
         NewTargetHosts = "*";
         NewTargetPorts = "*";
         NewProtocol = "TCP";
+        NewFullConeUdp = false;
         SelectedRuleAction = AvailableActions.FirstOrDefault();
         ProcessNameError = "";
     }
@@ -191,6 +199,9 @@ public class ProxyRulesViewModel : ViewModelBase
                         existRule.ProxyConfigId = pcId;
                         existRule.ProxyConfigDisplay = action == "PROXY" ? (SelectedRuleAction?.Label ?? "") : "";
                     }
+                    _proxyService.SetRuleFullCone(_currentEditingRuleId, NewFullConeUdp);
+                    if (existRule != null)
+                        existRule.FullConeUdp = NewFullConeUdp;
                     _onConfigChanged?.Invoke();
                 }
 
@@ -210,6 +221,7 @@ public class ProxyRulesViewModel : ViewModelBase
                     Action = action,
                     IsEnabled = true,
                     ProxyConfigId = pcId,
+                    FullConeUdp = NewFullConeUdp,
                     ProxyConfigDisplay = action == "PROXY" ? (SelectedRuleAction?.Label ?? "") : ""
                 };
 
@@ -302,6 +314,7 @@ public class ProxyRulesViewModel : ViewModelBase
             NewTargetHosts = rule.TargetHosts;
             NewTargetPorts = rule.TargetPorts;
             NewProtocol = rule.Protocol;
+            NewFullConeUdp = rule.FullConeUdp;
             SelectedRuleAction = AvailableActions.FirstOrDefault(a =>
                 a.Action == rule.Action && (a.Action != "PROXY" || a.ProxyConfigId == rule.ProxyConfigId))
                 ?? AvailableActions.FirstOrDefault();

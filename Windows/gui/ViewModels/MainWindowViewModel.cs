@@ -169,6 +169,8 @@ public class MainWindowViewModel : ViewModelBase
                         rule.Index = ProxyRules.IndexOf(rule) + 1;
                         if (!rule.IsEnabled)
                             _proxyService.DisableRule(ruleId);
+                        if (rule.FullConeUdp)
+                            _proxyService.SetRuleFullCone(ruleId, true);
                     }
                 }
 
@@ -487,7 +489,11 @@ public class MainWindowViewModel : ViewModelBase
                                 rule.ProcessName, rule.TargetHosts, rule.TargetPorts,
                                 rule.Protocol, rule.Action, rule.ProxyConfigId);
                             if (ruleId > 0)
+                            {
                                 rule.RuleId = ruleId;
+                                if (rule.FullConeUdp)
+                                    _proxyService.SetRuleFullCone(ruleId, true);
+                            }
                             else
                                 QueueActivityLog("Rule saved, but the routing core did not accept it (inactive).");
                         }
@@ -1315,6 +1321,7 @@ public class MainWindowViewModel : ViewModelBase
                         Action = ValidationHelper.DefaultIfEmpty(rc.Action, "PROXY"),
                         IsEnabled = rc.IsEnabled,
                         ProxyConfigId = rc.ProxyConfigId,
+                        FullConeUdp = rc.FullConeUdp,
                         ProxyConfigDisplay = pc?.DisplayName ?? ""
                     });
                 }
@@ -1428,6 +1435,8 @@ public class MainWindowViewModel : ViewModelBase
                     rule.Index = ProxyRules.Count + 1;
                     if (!rule.IsEnabled)
                         _proxyService.DisableRule(ruleId);
+                    if (rule.FullConeUdp)
+                        _proxyService.SetRuleFullCone(ruleId, true);
                 }
             }
 
@@ -1496,7 +1505,8 @@ public class MainWindowViewModel : ViewModelBase
                 Protocol = r.Protocol,
                 Action = r.Action,
                 IsEnabled = r.IsEnabled,
-                ProxyConfigId = r.ProxyConfigId
+                ProxyConfigId = r.ProxyConfigId,
+                FullConeUdp = r.FullConeUdp
             }).ToList()
         };
     }
@@ -1530,6 +1540,7 @@ public class ProxyRule : ViewModelBase
     private string _protocol = "TCP";
     private string _action = "PROXY";
     private bool _isEnabled = true;
+    private bool _fullConeUdp;
     private bool _isSelected = false;
     private int _index;
     private uint _ruleId;
@@ -1606,6 +1617,12 @@ public class ProxyRule : ViewModelBase
     {
         get => _isEnabled;
         set => SetProperty(ref _isEnabled, value);
+    }
+
+    public bool FullConeUdp
+    {
+        get => _fullConeUdp;
+        set => SetProperty(ref _fullConeUdp, value);
     }
 
     public bool IsSelected

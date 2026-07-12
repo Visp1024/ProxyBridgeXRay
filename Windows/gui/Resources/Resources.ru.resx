@@ -323,6 +323,12 @@
   <data name="LabelFlow" xml:space="preserve">
     <value>Flow</value>
   </data>
+  <data name="LabelFullConeUdp" xml:space="preserve">
+    <value>Full Cone UDP (игровой режим)</value>
+  </data>
+  <data name="TooltipFullConeUdp" xml:space="preserve">
+    <value>Отдельный UDP-туннель на каждый сокет игры. Чинит матчмейкинг/P2P в онлайн-играх. Только для SOCKS5-прокси.</value>
+  </data>
   <data name="XRaySectionReality" xml:space="preserve">
     <value>REALITY TLS</value>
   </data>

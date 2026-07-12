@@ -288,6 +288,10 @@
                                Foreground="#FFCC9900"
                                TextWrapping="Wrap"
                                Margin="0,4,0,0"/>
+                    <CheckBox Content="{Binding Loc.LabelFullConeUdp}"
+                              IsChecked="{Binding NewFullConeUdp}"
+                              ToolTip.Tip="{Binding Loc.TooltipFullConeUdp}"
+                              Margin="0,8,0,0"/>
                 </StackPanel>
 
                 <!-- Action Section -->

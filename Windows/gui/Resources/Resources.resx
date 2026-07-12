@@ -323,6 +323,12 @@
   <data name="LabelFlow" xml:space="preserve">
     <value>Flow</value>
   </data>
+  <data name="LabelFullConeUdp" xml:space="preserve">
+    <value>Full Cone UDP (game mode)</value>
+  </data>
+  <data name="TooltipFullConeUdp" xml:space="preserve">
+    <value>Dedicated UDP tunnel per game socket. Fixes matchmaking/P2P in online games. SOCKS5 proxies only.</value>
+  </data>
   <data name="XRaySectionReality" xml:space="preserve">
     <value>REALITY TLS</value>
   </data>

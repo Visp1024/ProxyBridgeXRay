@@ -143,6 +143,11 @@ public class ProxyBridgeService : IDisposable
         return ProxyBridgeNative.ProxyBridge_EditRule(ruleId, processName, targetHosts, targetPorts, ruleProtocol, ruleAction, proxyConfigId);
     }
 
+    public bool SetRuleFullCone(uint ruleId, bool enable)
+    {
+        return ProxyBridgeNative.ProxyBridge_SetRuleFullCone(ruleId, enable);
+    }
+
     public uint GetRulePosition(uint ruleId)
     {
         return ProxyBridgeNative.ProxyBridge_GetRulePosition(ruleId);

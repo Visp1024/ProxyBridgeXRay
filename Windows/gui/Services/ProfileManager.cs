@@ -36,6 +36,7 @@ public class ProxyRuleConfig
     public string Action { get; set; } = "PROXY";
     public bool IsEnabled { get; set; } = true;
     public uint ProxyConfigId { get; set; } = 0;
+    public bool FullConeUdp { get; set; } = false;
 }
 
 public class ProxyProfile
