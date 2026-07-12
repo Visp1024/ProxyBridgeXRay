@@ -16,6 +16,7 @@
 #define MAXBUF 0xFFFF
 #define LOCAL_PROXY_PORT 34010
 #define LOCAL_UDP_RELAY_PORT 34011  // its running UDP port still make sure to not run on same port as TCP, opening same port and tcp and udp cause issue and handling port at relay server response injection
+#define LOCAL_UDP_FULLCONE_PORT 34012  // Full Cone UDP relay: SOCKS5-encapsulated datagrams, one ASSOCIATE per client socket
 #define MAX_PROCESS_NAME 1024
 #define VERSION "4.0.0"
 #define PID_CACHE_SIZE 1024
@@ -86,6 +87,7 @@ typedef struct CONNECTION_INFO {
     BOOL   is_tracked;
     ULONGLONG last_activity;
     UINT32 proxy_config_id;
+    BOOL   full_cone;          // Full Cone UDP mode for this src_port (SOCKS5 in-band relay on 34012)
     BOOL   is_ipv6;
     UINT8  src_ip6[16];        // raw IPv6 src (only valid when is_ipv6)
     UINT8  orig_dest_ip6[16];  // raw IPv6 dest (only valid when is_ipv6)
@@ -373,8 +375,10 @@ static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 de
 static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
 static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
 static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
-static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT16 dest_port, UINT32 proxy_config_id);
-static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id);
+static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT16 dest_port, UINT32 proxy_config_id, BOOL full_cone);
+static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id, BOOL full_cone);
+static BOOL connection_is_fullcone(UINT16 src_port);
+static BOOL get_connection_client(UINT16 src_port, UINT32 *out_src_ip, UINT32 *out_proxy_config_id);
 static BOOL get_connection_full_v6(UINT16 src_port, UINT8 dest_ip6[16], UINT16 *dest_port, UINT32 *proxy_config_id);
 static BOOL find_v6_udp_sender(const UINT8 orig_dest_ip6[16], UINT16 orig_dest_port, UINT8 src_ip6[16], UINT16 *src_port);
 static BOOL get_connection(UINT16 src_port, UINT32 *dest_ip, UINT16 *dest_port);
@@ -393,6 +397,38 @@ static void cache_pid(UINT32 src_ip, UINT16 src_port, DWORD pid, BOOL is_udp);
 static void clear_pid_cache(void);
 static void update_has_active_rules(void);
 static void base64_encode(const char* input, char* output, size_t output_size);
+
+
+// Insert a SOCKS5 UDP request header (RFC 1928) between the UDP header and payload,
+// using the packet's own destination, and retarget the packet at the full-cone relay.
+// Returns FALSE (drop) if the packet would overflow MAXBUF.
+static BOOL fullcone_encapsulate_v4(unsigned char *packet, UINT *packet_len,
+                                    PWINDIVERT_IPHDR ip_header, PWINDIVERT_UDPHDR udp_header)
+{
+    if (*packet_len + 10 > MAXBUF)
+    {
+        log_message("[FULLCONE] UDP packet too large to encapsulate (%u bytes) - dropped", *packet_len);
+        return FALSE;
+    }
+    UINT8 *payload  = (UINT8 *)udp_header + sizeof(WINDIVERT_UDPHDR);
+    UINT   headers  = (UINT)(payload - packet);
+    UINT32 dest_ip  = ip_header->DstAddr;            // network order
+    UINT16 dest_port = ntohs(udp_header->DstPort);   // host order
+
+    memmove(payload + 10, payload, *packet_len - headers);
+    payload[0] = 0x00; payload[1] = 0x00;            // RSV
+    payload[2] = 0x00;                               // FRAG
+    payload[3] = SOCKS5_ATYP_IPV4;
+    memcpy(&payload[4], &dest_ip, 4);
+    payload[8] = (UINT8)((dest_port >> 8) & 0xFF);
+    payload[9] = (UINT8)(dest_port & 0xFF);
+
+    *packet_len += 10;
+    ip_header->Length   = htons((UINT16)(ntohs(ip_header->Length) + 10));
+    udp_header->Length  = htons((UINT16)(ntohs(udp_header->Length) + 10));
+    udp_header->DstPort = htons(LOCAL_UDP_FULLCONE_PORT);
+    return TRUE;
+}
 
 
 static DWORD WINAPI packet_processor(LPVOID arg)
@@ -524,7 +560,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                             // HTTP proxy can't relay UDP — drop
                             continue;
                         }
-                        add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, pcid6u);
+                        add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, pcid6u, FALSE);
 
                         udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
                         static const UINT8 _lb6up[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
@@ -714,7 +750,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                 }
                 else if (action6 == RULE_ACTION_PROXY)
                 {
-                    add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, proxy_config_id6);
+                    add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, proxy_config_id6, FALSE);
                     port_set_decided(sp);
                     tcp_header->DstPort = htons(g_local_relay_port);
 
@@ -752,7 +788,34 @@ static DWORD WINAPI packet_processor(LPVOID arg)
         {
             if (addr.Outbound)
             {
-                if (udp_header->SrcPort == htons(LOCAL_UDP_RELAY_PORT))
+                if (udp_header->SrcPort == htons(LOCAL_UDP_FULLCONE_PORT))
+                {
+                    // Full-cone relay reply: the true origin address rides in the SOCKS5
+                    // UDP header, so no connection-table lookup is needed (true full cone).
+                    UINT8 *payload  = (UINT8 *)udp_header + sizeof(WINDIVERT_UDPHDR);
+                    UINT   headers  = (UINT)(payload - packet);
+                    UINT   data_len = packet_len - headers;
+                    if (data_len < 10 || payload[2] != 0x00 || payload[3] != SOCKS5_ATYP_IPV4)
+                        continue;  // malformed or fragmented - drop
+
+                    UINT32 origin_ip;
+                    memcpy(&origin_ip, &payload[4], 4);
+                    UINT16 origin_port = (UINT16)((payload[8] << 8) | payload[9]);
+
+                    memmove(payload, payload + 10, data_len - 10);
+                    packet_len -= 10;
+                    ip_header->Length  = htons((UINT16)(ntohs(ip_header->Length) - 10));
+                    udp_header->Length = htons((UINT16)(ntohs(udp_header->Length) - 10));
+                    ip_header->SrcAddr = origin_ip;
+                    udp_header->SrcPort = htons(origin_port);
+
+                    // Same loopback/inbound logic as the 34011 branch below.
+                    BYTE dst_first_octet = (ntohl(ip_header->DstAddr) >> 24) & 0xFF;
+                    if (dst_first_octet != 127)
+                        addr.Outbound = FALSE;
+                    // else: stay OUTBOUND - loopback echo delivers the packet
+                }
+                else if (udp_header->SrcPort == htons(LOCAL_UDP_RELAY_PORT))
                 {
                     UINT16 dst_port = ntohs(udp_header->DstPort);
                     UINT32 orig_dest_ip;
@@ -786,7 +849,15 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                 else if (is_connection_tracked(ntohs(udp_header->SrcPort)))
                 {
                     UINT16 src_port = ntohs(udp_header->SrcPort);
-                    udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                    if (connection_is_fullcone(src_port))
+                    {
+                        if (!fullcone_encapsulate_v4(packet, &packet_len, ip_header, udp_header))
+                            continue;
+                    }
+                    else
+                    {
+                        udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                    }
 
                     BYTE src_first_octet = (ntohl(ip_header->SrcAddr) >> 24) & 0xFF;
                     BOOL src_is_loopback = (src_first_octet == 127);
@@ -820,8 +891,9 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     RuleAction action;
                     DWORD pid = 0;
                     UINT32 proxy_config_id = 0;
+                    BOOL rule_full_cone = FALSE;
 
-                    action = check_process_rule(src_ip, src_port, dest_ip, dest_port, TRUE, &pid, &proxy_config_id, NULL);
+                    action = check_process_rule(src_ip, src_port, dest_ip, dest_port, TRUE, &pid, &proxy_config_id, &rule_full_cone);
 
                     // override PROXY to DIRECT if localhost proxy is disabled and destination is localhost
                     BYTE dest_first_octet = (dest_ip >> 0) & 0xFF;
@@ -888,10 +960,23 @@ static DWORD WINAPI packet_processor(LPVOID arg)
 
                     if (action == RULE_ACTION_PROXY)
                     {
-                        add_connection(src_port, src_ip, dest_ip, dest_port, proxy_config_id);
+                        // Full Cone UDP takes effect only for SOCKS5 proxies; otherwise the
+                        // legacy shared relay (34011) is used exactly as before.
+                        PROXY_CONFIG *fc_cfg = rule_full_cone ? find_proxy_config(proxy_config_id) : NULL;
+                        BOOL use_fullcone = (fc_cfg != NULL && fc_cfg->type == PROXY_TYPE_SOCKS5);
 
-                        // redirect to UDP relay server at 127.0.0.1:34011
-                        udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        add_connection(src_port, src_ip, dest_ip, dest_port, proxy_config_id, use_fullcone);
+
+                        if (use_fullcone)
+                        {
+                            if (!fullcone_encapsulate_v4(packet, &packet_len, ip_header, udp_header))
+                                continue;
+                        }
+                        else
+                        {
+                            // redirect to UDP relay server at 127.0.0.1:34011
+                            udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        }
 
                         // check if source is localhost
                         BYTE src_first_octet = (ntohl(ip_header->SrcAddr) >> 24) & 0xFF;
@@ -1106,7 +1191,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                 }
                 else if (action == RULE_ACTION_PROXY)
             {
-                add_connection(src_port, src_ip, orig_dest_ip, orig_dest_port, proxy_config_id);
+                add_connection(src_port, src_ip, orig_dest_ip, orig_dest_port, proxy_config_id, FALSE);
                 // Mark this port as decided (not direct) so subsequent packets from
                 // the same source port skip the rule check.  The is_connection_tracked
                 // branch above handles the actual per-packet redirect.
@@ -3663,7 +3748,7 @@ static DWORD WINAPI transfer_handler(LPVOID arg)
     return 0;
 }
 
-static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT16 dest_port, UINT32 proxy_config_id)
+static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT16 dest_port, UINT32 proxy_config_id, BOOL full_cone)
 {
     AcquireSRWLockExclusive(&lock);
 
@@ -3678,6 +3763,7 @@ static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT1
             existing->orig_dest_ip = dest_ip;
             existing->orig_dest_port = dest_port;
             existing->proxy_config_id = proxy_config_id;
+            existing->full_cone = full_cone;
             existing->is_tracked = TRUE;
             existing->last_activity = GetTickCount64();
             ReleaseSRWLockExclusive(&lock);
@@ -3697,6 +3783,7 @@ static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT1
     conn->orig_dest_ip = dest_ip;
     conn->orig_dest_port = dest_port;
     conn->proxy_config_id = proxy_config_id;
+    conn->full_cone = full_cone;
     conn->is_tracked = TRUE;
     conn->is_ipv6 = FALSE;
     conn->last_activity = GetTickCount64();
@@ -3706,7 +3793,7 @@ static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT1
     ReleaseSRWLockExclusive(&lock);
 }
 
-static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id)
+static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id, BOOL full_cone)
 {
     AcquireSRWLockExclusive(&lock);
 
@@ -3720,6 +3807,7 @@ static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UI
             memcpy(existing->orig_dest_ip6, dest_ip6, 16);
             existing->orig_dest_port = dest_port;
             existing->proxy_config_id = proxy_config_id;
+            existing->full_cone = full_cone;
             existing->is_tracked = TRUE;
             existing->last_activity = GetTickCount64();
             ReleaseSRWLockExclusive(&lock);
@@ -3742,6 +3830,7 @@ static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UI
     memcpy(conn->orig_dest_ip6, dest_ip6, 16);
     conn->orig_dest_port = dest_port;
     conn->proxy_config_id = proxy_config_id;
+    conn->full_cone = full_cone;
     conn->is_tracked = TRUE;
     conn->last_activity = GetTickCount64();
     conn->next = connection_hash_table[hash];
@@ -3888,6 +3977,41 @@ static UINT32 get_connection_proxy_id(UINT16 src_port)
     ReleaseSRWLockShared(&lock);
 
     return proxy_config_id;
+}
+
+// TRUE if the tracked src_port is a Full Cone UDP connection (SOCKS5 in-band relay).
+static BOOL connection_is_fullcone(UINT16 src_port)
+{
+    BOOL fc = FALSE;
+    AcquireSRWLockShared(&lock);
+    CONNECTION_INFO *conn = connection_hash_table[src_port % CONNECTION_HASH_SIZE];
+    while (conn != NULL) {
+        if (conn->src_port == src_port) { fc = conn->full_cone; break; }
+        conn = conn->next;
+    }
+    ReleaseSRWLockShared(&lock);
+    return fc;
+}
+
+// Resolves an IPv4 full-cone src_port to its client IP + proxy config for session setup.
+// Refreshes last_activity so the connection entry survives while the session is alive.
+static BOOL get_connection_client(UINT16 src_port, UINT32 *out_src_ip, UINT32 *out_proxy_config_id)
+{
+    BOOL found = FALSE;
+    AcquireSRWLockShared(&lock);
+    CONNECTION_INFO *conn = connection_hash_table[src_port % CONNECTION_HASH_SIZE];
+    while (conn != NULL) {
+        if (conn->src_port == src_port && !conn->is_ipv6) {
+            if (out_src_ip) *out_src_ip = conn->src_ip;
+            if (out_proxy_config_id) *out_proxy_config_id = conn->proxy_config_id;
+            InterlockedExchange64((LONGLONG volatile*)&conn->last_activity, (LONGLONG)GetTickCount64());
+            found = TRUE;
+            break;
+        }
+        conn = conn->next;
+    }
+    ReleaseSRWLockShared(&lock);
+    return found;
 }
 
 static void remove_connection(UINT16 src_port)
@@ -4748,13 +4872,13 @@ PROXYBRIDGE_API BOOL ProxyBridge_Start(void)
     snprintf(filter, sizeof(filter),
         "not impostor and ("
         "(tcp and (outbound or loopback or (tcp.DstPort == %d or tcp.SrcPort == %d))) or "
-        "(udp and (outbound or loopback or (udp.DstPort == %d or udp.SrcPort == %d))) or "
+        "(udp and (outbound or loopback or (udp.DstPort == %d or udp.SrcPort == %d or udp.DstPort == %d or udp.SrcPort == %d))) or "
         "(udp and not outbound and udp.SrcPort == 53) or "
         "(ipv6 and udp and not outbound and udp.SrcPort == 53) or "
         "(ipv6 and tcp and (outbound or loopback or (tcp.DstPort == %d or tcp.SrcPort == %d))) or "
-        "(ipv6 and udp and (outbound or loopback or (udp.DstPort == %d or udp.SrcPort == %d))))",
-        g_local_relay_port, g_local_relay_port, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_RELAY_PORT,
-        g_local_relay_port, g_local_relay_port, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_RELAY_PORT);
+        "(ipv6 and udp and (outbound or loopback or (udp.DstPort == %d or udp.SrcPort == %d or udp.DstPort == %d or udp.SrcPort == %d))))",
+        g_local_relay_port, g_local_relay_port, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_FULLCONE_PORT, LOCAL_UDP_FULLCONE_PORT,
+        g_local_relay_port, g_local_relay_port, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_RELAY_PORT, LOCAL_UDP_FULLCONE_PORT, LOCAL_UDP_FULLCONE_PORT);
 
     // Note: Added 'loopback' to filter to capture localhost (127.x.x.x) traffic
     // This enables proxying local connections for MITM scenarios
