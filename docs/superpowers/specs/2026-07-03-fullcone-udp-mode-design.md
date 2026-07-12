@@ -59,15 +59,21 @@ New constant `LOCAL_UDP_FULLCONE_PORT 34012`.
 **Full-cone relay (new thread `udp_fullcone_relay_server`):**
 
 - Listens on 34012 (IPv4 and IPv6 sockets).
-- Per client source port — a session: own TCP control + own UDP ASSOCIATE to the SOCKS5
-  proxy. Sessions stored in a hash table keyed by client port.
+- Per client socket — a session, keyed by `(client_port, is_ipv6)`: own TCP control +
+  own UDP ASSOCIATE to the SOCKS5 proxy. Sessions stored in a hash table under a dedicated
+  `g_fullcone_lock`.
 - Client datagrams are already SOCKS5-formatted → forwarded to the proxy **verbatim**.
-- While the associate is being established (~RTT), incoming datagrams are buffered in a
-  32-packet ring, then flushed — the first pings to each region are not lost.
+- The associate handshake (up to ~3 s) runs on a per-session **worker thread**, so it never
+  blocks the relay's accept loop or other sessions. While it is in flight, incoming
+  datagrams are buffered in a **per-session 32-packet ring** and flushed in order once the
+  ASSOCIATE completes — the first pings to each region are not lost.
 - Per session, a reader thread: datagrams from the proxy (SOCKS5 format, origin in the
-  header) are sent to the client **verbatim** from port 34012.
-- Lifecycle: idle timeout 120 s → close sockets, delete session; TCP control drop →
-  tear down the session, the next client packet recreates it (existing 1 s retry guard).
+  header) are sent to the client **verbatim** from port 34012. Its `sendto` on the shared
+  34012 socket uses `SO_SNDTIMEO` so it can never wedge and block teardown.
+- Lifecycle: idle timeout 120 s → close sockets, delete session; TCP control / proxy send
+  failure → tear down the session, the next client packet recreates it (per-session 1 s
+  retry guard via a lingering `FC_DEAD` entry). Teardown is relay-thread-only and joins the
+  worker/reader before freeing (no use-after-free).
 - Session cap 256; on overflow — log + drop.
 
 **Inbound (relay 34012 → app):**
