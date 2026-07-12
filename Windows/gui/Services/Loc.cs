@@ -158,6 +158,7 @@ public class Loc : INotifyPropertyChanged
     public string LabelFlow             => Resources.Resources.LabelFlow;
     public string LabelFullConeUdp      => Resources.Resources.LabelFullConeUdp;
     public string TooltipFullConeUdp    => Resources.Resources.TooltipFullConeUdp;
+    public string LabelXudp             => Resources.Resources.LabelXudp;
     public string XRaySectionReality    => Resources.Resources.XRaySectionReality;
     public string LabelSni              => Resources.Resources.LabelSni;
     public string PlaceholderSni        => Resources.Resources.PlaceholderSni;

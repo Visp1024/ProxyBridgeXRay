@@ -15,6 +15,7 @@ public class XRaySettingsViewModel : ViewModelBase
     private string _serverPort = "443";
     private string _uuid = "";
     private string _flow = "xtls-rprx-vision";
+    private bool _xudpEnabled = true;
     private string _sni = "";
     private string _fingerprint = "chrome";
     private string _publicKey = "";
@@ -61,6 +62,12 @@ public class XRaySettingsViewModel : ViewModelBase
     {
         get => _flow;
         set => SetProperty(ref _flow, value);
+    }
+
+    public bool XudpEnabled
+    {
+        get => _xudpEnabled;
+        set => SetProperty(ref _xudpEnabled, value);
     }
 
     public string Sni
@@ -204,6 +211,7 @@ public class XRaySettingsViewModel : ViewModelBase
         HttpPort  = initial.HttpPort;
         XRayPath  = initial.XRayPath;
         AutoStartXRay = initial.AutoStartXRay;
+        XudpEnabled = initial.XudpEnabled;
 
         SaveCommand = new RelayCommand(() =>
         {
@@ -262,6 +270,7 @@ public class XRaySettingsViewModel : ViewModelBase
                 HttpPort  = HttpPort.Trim(),
                 XRayPath  = XRayPath.Trim(),
                 AutoStartXRay = AutoStartXRay,
+                XudpEnabled = XudpEnabled,
             });
         });
 

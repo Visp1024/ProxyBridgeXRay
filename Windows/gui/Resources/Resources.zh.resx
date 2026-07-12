@@ -283,6 +283,9 @@
   <data name="TooltipFullConeUdp" xml:space="preserve">
     <value>为每个游戏套接字建立独立的 UDP 隧道。修复在线游戏的匹配/P2P。仅适用于 SOCKS5 代理。</value>
   </data>
+  <data name="LabelXudp" xml:space="preserve">
+    <value>XUDP (Full Cone UDP) — 服务器需要 xray-core 1.8+</value>
+  </data>
   <data name="ActionProxy" xml:space="preserve">
     <value>代理</value>
   </data>

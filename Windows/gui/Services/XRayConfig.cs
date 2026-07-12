@@ -20,4 +20,5 @@ public class XRayConfig
     public string HttpPort      { get; set; } = "10809";
     public string XRayPath      { get; set; } = "";
     public bool   AutoStartXRay { get; set; } = false;
+    public bool   XudpEnabled   { get; set; } = true;   // XUDP mux (Full Cone UDP). Old settings.json without the field -> true.
 }

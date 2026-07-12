@@ -190,6 +190,9 @@
                         <ComboBoxItem Content="xtls-rprx-vision" Tag="xtls-rprx-vision"/>
                         <ComboBoxItem Content="(none)" Tag=""/>
                     </ComboBox>
+                    <CheckBox Content="{Binding Loc.LabelXudp}"
+                              IsChecked="{Binding XudpEnabled}"
+                              Margin="0,8,0,0"/>
                 </StackPanel>
 
                 <!-- Section: REALITY TLS -->

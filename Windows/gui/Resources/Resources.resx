@@ -329,6 +329,9 @@
   <data name="TooltipFullConeUdp" xml:space="preserve">
     <value>Dedicated UDP tunnel per game socket. Fixes matchmaking/P2P in online games. SOCKS5 proxies only.</value>
   </data>
+  <data name="LabelXudp" xml:space="preserve">
+    <value>XUDP (Full Cone UDP) — requires xray-core 1.8+ on the server</value>
+  </data>
   <data name="XRaySectionReality" xml:space="preserve">
     <value>REALITY TLS</value>
   </data>

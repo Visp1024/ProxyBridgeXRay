@@ -329,6 +329,9 @@
   <data name="TooltipFullConeUdp" xml:space="preserve">
     <value>Отдельный UDP-туннель на каждый сокет игры. Чинит матчмейкинг/P2P в онлайн-играх. Только для SOCKS5-прокси.</value>
   </data>
+  <data name="LabelXudp" xml:space="preserve">
+    <value>XUDP (Full Cone UDP) — нужен xray-core 1.8+ на сервере</value>
+  </data>
   <data name="XRaySectionReality" xml:space="preserve">
     <value>REALITY TLS</value>
   </data>
