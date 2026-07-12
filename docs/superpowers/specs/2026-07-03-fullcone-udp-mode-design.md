@@ -102,9 +102,14 @@ New constant `LOCAL_UDP_FULLCONE_PORT 34012`.
   settings.
 - When enabled, `vless-out` gains:
   `"mux": { "enabled": true, "concurrency": -1, "xudpConcurrency": 16,
-  "xudpProxyUDP443": "reject" }` — TCP is not muxed (vision stays effective), UDP goes
+  "xudpProxyUDP443": "<mode>" }` — TCP is not muxed (vision stays effective), UDP goes
   through XUDP with a single public source port on the VPS. Requires xray-core ≥ 1.8 on
   both ends; the checkbox is the escape hatch for old servers.
+- `XRayConfig.XudpProxyUDP443` controls how UDP:443 (QUIC/HTTP3) is handled, exposed as a
+  dropdown: **`allow`** (default — route QUIC through XUDP), `skip` (send QUIC direct,
+  bypassing the proxy), or `reject` (block QUIC so apps fall back to TCP). The old
+  hard-coded `reject` is no longer the default, so HTTP/3 traffic is not silently
+  blackholed.
 
 ## Errors and edge cases
 

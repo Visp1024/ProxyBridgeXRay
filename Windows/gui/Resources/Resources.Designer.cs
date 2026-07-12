@@ -470,6 +470,10 @@ namespace ProxyBridge.GUI.Resources {
         internal static string LabelFullConeUdp => ResourceManager.GetString("LabelFullConeUdp", resourceCulture);
         internal static string TooltipFullConeUdp => ResourceManager.GetString("TooltipFullConeUdp", resourceCulture);
         internal static string LabelXudp => ResourceManager.GetString("LabelXudp", resourceCulture);
+        internal static string LabelXudp443 => ResourceManager.GetString("LabelXudp443", resourceCulture);
+        internal static string Xudp443Allow => ResourceManager.GetString("Xudp443Allow", resourceCulture);
+        internal static string Xudp443Skip => ResourceManager.GetString("Xudp443Skip", resourceCulture);
+        internal static string Xudp443Reject => ResourceManager.GetString("Xudp443Reject", resourceCulture);
         internal static string XRaySectionReality => ResourceManager.GetString("XRaySectionReality", resourceCulture);
         internal static string LabelSni => ResourceManager.GetString("LabelSni", resourceCulture);
         internal static string PlaceholderSni => ResourceManager.GetString("PlaceholderSni", resourceCulture);

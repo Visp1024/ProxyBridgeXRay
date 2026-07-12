@@ -322,8 +322,8 @@ $@"{{
           ""shortId"": ""{Esc(cfg.ShortId)}"",
           ""spiderX"": ""{Esc(cfg.SpiderX)}""
         }}
-      }}{(cfg.XudpEnabled ? @",
-      ""mux"": { ""enabled"": true, ""concurrency"": -1, ""xudpConcurrency"": 16, ""xudpProxyUDP443"": ""reject"" }" : "")}
+      }}{(cfg.XudpEnabled ? $@",
+      ""mux"": {{ ""enabled"": true, ""concurrency"": -1, ""xudpConcurrency"": 16, ""xudpProxyUDP443"": ""{Esc(cfg.XudpProxyUDP443)}"" }}" : "")}
     }}
   ]
 }}";

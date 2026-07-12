@@ -10,6 +10,7 @@ public partial class XRaySettingsWindow : Window
 {
     private ComboBox? _flowBox;
     private ComboBox? _fpBox;
+    private ComboBox? _xudp443Box;
 
     public XRaySettingsWindow()
     {
@@ -21,9 +22,11 @@ public partial class XRaySettingsWindow : Window
 
             _flowBox = this.FindControl<ComboBox>("FlowComboBox");
             _fpBox   = this.FindControl<ComboBox>("FingerprintComboBox");
+            _xudp443Box = this.FindControl<ComboBox>("Xudp443ComboBox");
 
             SetComboBox(_flowBox, vm.Flow);
             SetComboBox(_fpBox, vm.Fingerprint);
+            SetComboBox(_xudp443Box, vm.XudpProxyUDP443);
 
             if (_flowBox != null)
             {
@@ -40,6 +43,15 @@ public partial class XRaySettingsWindow : Window
                 {
                     if (_fpBox.SelectedItem is ComboBoxItem item && item.Tag is string tag)
                         vm.Fingerprint = tag;
+                };
+            }
+
+            if (_xudp443Box != null)
+            {
+                _xudp443Box.SelectionChanged += (_, _) =>
+                {
+                    if (_xudp443Box.SelectedItem is ComboBoxItem item && item.Tag is string tag)
+                        vm.XudpProxyUDP443 = tag;
                 };
             }
 
@@ -62,6 +74,8 @@ public partial class XRaySettingsWindow : Window
             SetComboBox(_flowBox, vm.Flow);
         else if (e.PropertyName == nameof(XRaySettingsViewModel.Fingerprint))
             SetComboBox(_fpBox, vm.Fingerprint);
+        else if (e.PropertyName == nameof(XRaySettingsViewModel.XudpProxyUDP443))
+            SetComboBox(_xudp443Box, vm.XudpProxyUDP443);
     }
 
     private static void SetComboBox(ComboBox? box, string value)

@@ -193,6 +193,15 @@
                     <CheckBox Content="{Binding Loc.LabelXudp}"
                               IsChecked="{Binding XudpEnabled}"
                               Margin="0,8,0,0"/>
+                    <TextBlock Text="{Binding Loc.LabelXudp443}" Classes="label"
+                               IsEnabled="{Binding XudpEnabled}" Margin="0,6,0,0"/>
+                    <ComboBox x:Name="Xudp443ComboBox"
+                              HorizontalAlignment="Stretch"
+                              IsEnabled="{Binding XudpEnabled}">
+                        <ComboBoxItem Content="{Binding Loc.Xudp443Allow}"  Tag="allow"/>
+                        <ComboBoxItem Content="{Binding Loc.Xudp443Skip}"   Tag="skip"/>
+                        <ComboBoxItem Content="{Binding Loc.Xudp443Reject}" Tag="reject"/>
+                    </ComboBox>
                 </StackPanel>
 
                 <!-- Section: REALITY TLS -->

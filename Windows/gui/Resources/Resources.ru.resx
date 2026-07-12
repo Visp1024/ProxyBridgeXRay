@@ -332,6 +332,18 @@
   <data name="LabelXudp" xml:space="preserve">
     <value>XUDP (Full Cone UDP) — нужен xray-core 1.8+ на сервере</value>
   </data>
+  <data name="LabelXudp443" xml:space="preserve">
+    <value>UDP 443 (QUIC / HTTP3)</value>
+  </data>
+  <data name="Xudp443Allow" xml:space="preserve">
+    <value>Allow — пускать QUIC через XUDP</value>
+  </data>
+  <data name="Xudp443Skip" xml:space="preserve">
+    <value>Skip — QUIC напрямую (мимо прокси)</value>
+  </data>
+  <data name="Xudp443Reject" xml:space="preserve">
+    <value>Reject — блокировать QUIC (откат на TCP)</value>
+  </data>
   <data name="XRaySectionReality" xml:space="preserve">
     <value>REALITY TLS</value>
   </data>

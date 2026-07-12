@@ -21,4 +21,7 @@ public class XRayConfig
     public string XRayPath      { get; set; } = "";
     public bool   AutoStartXRay { get; set; } = false;
     public bool   XudpEnabled   { get; set; } = true;   // XUDP mux (Full Cone UDP). Old settings.json without the field -> true.
+    // How XUDP treats UDP:443 (QUIC/HTTP3): "allow" = route via XUDP (default),
+    // "skip" = send direct (bypass proxy), "reject" = block so apps fall back to TCP.
+    public string XudpProxyUDP443 { get; set; } = "allow";
 }
