@@ -379,6 +379,7 @@ static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT1
 static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id, BOOL full_cone);
 static BOOL connection_is_fullcone(UINT16 src_port);
 static BOOL get_connection_client(UINT16 src_port, UINT32 *out_src_ip, UINT32 *out_proxy_config_id);
+static BOOL get_connection_client_v6(UINT16 src_port, UINT8 out_src_ip6[16], UINT32 *out_proxy_config_id);
 static BOOL get_connection_full_v6(UINT16 src_port, UINT8 dest_ip6[16], UINT16 *dest_port, UINT32 *proxy_config_id);
 static BOOL find_v6_udp_sender(const UINT8 orig_dest_ip6[16], UINT16 orig_dest_port, UINT8 src_ip6[16], UINT16 *src_port);
 static BOOL get_connection(UINT16 src_port, UINT32 *dest_ip, UINT16 *dest_port);
@@ -430,6 +431,34 @@ static BOOL fullcone_encapsulate_v4(unsigned char *packet, UINT *packet_len,
     return TRUE;
 }
 
+// IPv6 variant: 22-byte SOCKS5 UDP header (ATYP=4, 16-byte address + 2-byte port).
+static BOOL fullcone_encapsulate_v6(unsigned char *packet, UINT *packet_len,
+                                    PWINDIVERT_IPV6HDR ipv6_header, PWINDIVERT_UDPHDR udp_header)
+{
+    if (*packet_len + 22 > MAXBUF)
+    {
+        log_message("[FULLCONE] UDPv6 packet too large to encapsulate (%u bytes) - dropped", *packet_len);
+        return FALSE;
+    }
+    UINT8 *payload   = (UINT8 *)udp_header + sizeof(WINDIVERT_UDPHDR);
+    UINT   headers   = (UINT)(payload - packet);
+    UINT16 dest_port = ntohs(udp_header->DstPort);   // host order
+
+    memmove(payload + 22, payload, *packet_len - headers);
+    payload[0] = 0x00; payload[1] = 0x00;            // RSV
+    payload[2] = 0x00;                               // FRAG
+    payload[3] = SOCKS5_ATYP_IPV6;
+    memcpy(&payload[4], ipv6_header->DstAddr, 16);   // raw v6 dest (network order)
+    payload[20] = (UINT8)((dest_port >> 8) & 0xFF);
+    payload[21] = (UINT8)(dest_port & 0xFF);
+
+    *packet_len += 22;
+    ipv6_header->Length = htons((UINT16)(ntohs(ipv6_header->Length) + 22));
+    udp_header->Length  = htons((UINT16)(ntohs(udp_header->Length) + 22));
+    udp_header->DstPort = htons(LOCAL_UDP_FULLCONE_PORT);
+    return TRUE;
+}
+
 
 static DWORD WINAPI packet_processor(LPVOID arg)
 {
@@ -466,6 +495,32 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     UINT16 sp = ntohs(udp_header->SrcPort);
                     UINT16 dp = ntohs(udp_header->DstPort);
 
+                    // Full-cone relay reply: v6 origin rides in the SOCKS5 header (ATYP=4).
+                    if (sp == LOCAL_UDP_FULLCONE_PORT)
+                    {
+                        UINT8 *payload  = (UINT8 *)udp_header + sizeof(WINDIVERT_UDPHDR);
+                        UINT   headers  = (UINT)(payload - packet);
+                        UINT   data_len = packet_len - headers;
+                        if (data_len < 22 || payload[2] != 0x00 || payload[3] != SOCKS5_ATYP_IPV6)
+                            continue;  // malformed or fragmented - drop
+
+                        UINT8  origin_ip6[16];
+                        memcpy(origin_ip6, &payload[4], 16);
+                        UINT16 origin_port = (UINT16)((payload[20] << 8) | payload[21]);
+
+                        memmove(payload, payload + 22, data_len - 22);
+                        packet_len -= 22;
+                        ipv6_header->Length = htons((UINT16)(ntohs(ipv6_header->Length) - 22));
+                        udp_header->Length  = htons((UINT16)(ntohs(udp_header->Length) - 22));
+                        memcpy(ipv6_header->SrcAddr, origin_ip6, 16);
+                        udp_header->SrcPort = htons(origin_port);
+
+                        static const UINT8 _lb6fc[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
+                        if (memcmp(ipv6_header->DstAddr, _lb6fc, 16) != 0)
+                            addr.Outbound = FALSE;
+                        goto ipv6u_send;
+                    }
+
                     // relay response: restore orig src port/addr
                     if (sp == LOCAL_UDP_RELAY_PORT)
                     {
@@ -487,7 +542,15 @@ static DWORD WINAPI packet_processor(LPVOID arg)
 
                     if (is_connection_tracked(sp))
                     {
-                        udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        if (connection_is_fullcone(sp))
+                        {
+                            if (!fullcone_encapsulate_v6(packet, &packet_len, ipv6_header, udp_header))
+                                continue;
+                        }
+                        else
+                        {
+                            udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        }
                         static const UINT8 _lb6u2[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
                         BOOL both_lb=(memcmp(ipv6_header->SrcAddr,_lb6u2,16)==0&&memcmp(ipv6_header->DstAddr,_lb6u2,16)==0);
                         if (!both_lb)
@@ -516,7 +579,8 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     RuleAction action6u;
                     DWORD pid6u = 0;
                     UINT32 pcid6u = 0;
-                    action6u = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, TRUE, &pid6u, &pcid6u, NULL);
+                    BOOL rule6u_full_cone = FALSE;
+                    action6u = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, TRUE, &pid6u, &pcid6u, &rule6u_full_cone);
 
                     if (action6u == RULE_ACTION_PROXY && !g_localhost_via_proxy)
                     {
@@ -560,9 +624,19 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                             // HTTP proxy can't relay UDP — drop
                             continue;
                         }
-                        add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, pcid6u, FALSE);
+                        // pc6u is SOCKS5 here, so full cone applies iff the rule enabled it.
+                        BOOL use_fullcone6 = rule6u_full_cone;
+                        add_connection_v6(sp, (const UINT8*)ipv6_header->SrcAddr, (const UINT8*)ipv6_header->DstAddr, dp, pcid6u, use_fullcone6);
 
-                        udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        if (use_fullcone6)
+                        {
+                            if (!fullcone_encapsulate_v6(packet, &packet_len, ipv6_header, udp_header))
+                                continue;
+                        }
+                        else
+                        {
+                            udp_header->DstPort = htons(LOCAL_UDP_RELAY_PORT);
+                        }
                         static const UINT8 _lb6up[16]={0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1};
                         BOOL both_lb=(memcmp(ipv6_header->SrcAddr,_lb6up,16)==0&&memcmp(ipv6_header->DstAddr,_lb6up,16)==0);
                         if (both_lb)
@@ -3531,11 +3605,23 @@ static DWORD WINAPI fullcone_session_reader(LPVOID arg)
 
         InterlockedExchange64((LONGLONG volatile*)&s->last_activity, (LONGLONG)GetTickCount64());
 
-        struct sockaddr_in target = {0};
-        target.sin_family = AF_INET;
-        target.sin_addr.s_addr = s->client_ip;
-        target.sin_port = htons(s->client_port);
-        sendto(fullcone_socket, (char*)buf, len, 0, (struct sockaddr*)&target, sizeof(target));
+        if (s->is_ipv6)
+        {
+            if (fullcone_socket6 == INVALID_SOCKET) continue;
+            struct sockaddr_in6 target6 = {0};
+            target6.sin6_family = AF_INET6;
+            memcpy(&target6.sin6_addr, s->client_ip6, 16);
+            target6.sin6_port = htons(s->client_port);
+            sendto(fullcone_socket6, (char*)buf, len, 0, (struct sockaddr*)&target6, sizeof(target6));
+        }
+        else
+        {
+            struct sockaddr_in target = {0};
+            target.sin_family = AF_INET;
+            target.sin_addr.s_addr = s->client_ip;
+            target.sin_port = htons(s->client_port);
+            sendto(fullcone_socket, (char*)buf, len, 0, (struct sockaddr*)&target, sizeof(target));
+        }
         // send failure (incl. SO_SNDTIMEO WSAEWOULDBLOCK) -> drop this datagram, keep pumping
     }
     return 0;
@@ -3684,6 +3770,97 @@ static void fullcone_dispatch_v4(unsigned char *buf, int len, UINT16 client_port
     log_message("[FULLCONE] New session pending for client port %u", client_port);
 }
 
+// Relay thread only. IPv6 variant of fullcone_dispatch_v4. Sessions are keyed by
+// (client_port, is_ipv6=TRUE); the worker/reader are shared (proxy side stays IPv4).
+static void fullcone_dispatch_v6(unsigned char *buf, int len, UINT16 client_port)
+{
+    ULONGLONG now = GetTickCount64();
+    int hash = client_port % FULLCONE_SESSION_HASH;
+
+    AcquireSRWLockExclusive(&g_fullcone_lock);
+    FULLCONE_SESSION *s = g_fullcone_sessions[hash];
+    while (s != NULL && !(s->client_port == client_port && s->is_ipv6)) s = s->next;
+
+    if (s != NULL)
+    {
+        if (s->state == FC_ACTIVE)
+        {
+            SOCKET psock = s->proxy_sock;
+            struct sockaddr_in raddr = s->proxy_relay_addr;
+            InterlockedExchange64((LONGLONG volatile*)&s->last_activity, (LONGLONG)now);
+            ReleaseSRWLockExclusive(&g_fullcone_lock);
+            if (sendto(psock, (char*)buf, len, 0, (struct sockaddr*)&raddr, sizeof(raddr)) == SOCKET_ERROR)
+            {
+                log_message("[FULLCONE] sendto proxy failed (%d) for v6 client port %u - session reset",
+                            WSAGetLastError(), client_port);
+                fullcone_destroy_session(s);
+            }
+            return;
+        }
+        if (s->state == FC_PENDING)
+        {
+            fullcone_ring_push(s, buf, len);
+            s->last_activity = (LONGLONG)now;
+            ReleaseSRWLockExclusive(&g_fullcone_lock);
+            return;
+        }
+        // FC_DEAD
+        if (now - (ULONGLONG)s->fail_tick < FULLCONE_FAIL_GUARD_MS)
+        {
+            ReleaseSRWLockExclusive(&g_fullcone_lock);
+            return;
+        }
+        ReleaseSRWLockExclusive(&g_fullcone_lock);
+        fullcone_destroy_session(s);
+        s = NULL;
+        AcquireSRWLockExclusive(&g_fullcone_lock);
+    }
+
+    if (g_fullcone_session_count >= FULLCONE_MAX_SESSIONS)
+    {
+        ReleaseSRWLockExclusive(&g_fullcone_lock);
+        log_message("[FULLCONE] Session cap (%d) reached - dropping v6 client port %u",
+                    FULLCONE_MAX_SESSIONS, client_port);
+        return;
+    }
+    ReleaseSRWLockExclusive(&g_fullcone_lock);
+
+    UINT8  client_ip6[16] = {0};
+    UINT32 cfg_id = 0;
+    if (!get_connection_client_v6(client_port, client_ip6, &cfg_id))
+    {
+        log_message("[FULLCONE] No tracked v6 client for port %u - dropped", client_port);
+        return;
+    }
+
+    FULLCONE_SESSION *ns = (FULLCONE_SESSION *)calloc(1, sizeof(FULLCONE_SESSION));
+    if (ns == NULL) return;
+    ns->client_port     = client_port;
+    ns->is_ipv6         = TRUE;
+    memcpy(ns->client_ip6, client_ip6, 16);
+    ns->proxy_config_id = cfg_id;
+    ns->state           = FC_PENDING;
+    ns->tcp_ctrl        = INVALID_SOCKET;
+    ns->proxy_sock      = INVALID_SOCKET;
+    ns->last_activity   = (LONGLONG)now;
+
+    AcquireSRWLockExclusive(&g_fullcone_lock);
+    fullcone_ring_push(ns, buf, len);
+    ns->worker_thread = CreateThread(NULL, 0, fullcone_connect_worker, ns, 0, NULL);
+    if (ns->worker_thread == NULL)
+    {
+        ReleaseSRWLockExclusive(&g_fullcone_lock);
+        fullcone_ring_clear(ns);
+        free(ns);
+        return;
+    }
+    ns->next = g_fullcone_sessions[hash];
+    g_fullcone_sessions[hash] = ns;
+    g_fullcone_session_count++;
+    ReleaseSRWLockExclusive(&g_fullcone_lock);
+    log_message("[FULLCONE] New v6 session pending for client port %u", client_port);
+}
+
 static DWORD WINAPI udp_fullcone_relay_server(LPVOID arg)
 {
     (void)arg;
@@ -3708,24 +3885,52 @@ static DWORD WINAPI udp_fullcone_relay_server(LPVOID arg)
     if (bind(fullcone_socket, (struct sockaddr*)&local, sizeof(local)) == SOCKET_ERROR)
     { closesocket(fullcone_socket); fullcone_socket = INVALID_SOCKET; return 1; }
 
+    // IPv6 full-cone socket on [::]:34012 (best-effort; v4 keeps working if this fails).
+    fullcone_socket6 = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP);
+    if (fullcone_socket6 != INVALID_SOCKET)
+    {
+        int v6only = 1;
+        setsockopt(fullcone_socket6, IPPROTO_IPV6, IPV6_V6ONLY, (const char*)&v6only, sizeof(v6only));
+        setsockopt(fullcone_socket6, SOL_SOCKET, SO_REUSEADDR, (const char*)&on, sizeof(on));
+        configure_udp_socket(fullcone_socket6, 262144, 30000);
+        setsockopt(fullcone_socket6, SOL_SOCKET, SO_SNDTIMEO, (const char*)&snd_to, sizeof(snd_to));
+        struct sockaddr_in6 a6 = {0};
+        a6.sin6_family = AF_INET6;
+        a6.sin6_addr = in6addr_any;
+        a6.sin6_port = htons(LOCAL_UDP_FULLCONE_PORT);
+        if (bind(fullcone_socket6, (struct sockaddr*)&a6, sizeof(a6)) == SOCKET_ERROR)
+        { closesocket(fullcone_socket6); fullcone_socket6 = INVALID_SOCKET; }
+    }
+
     log_message("Full Cone UDP relay listening on port %d", LOCAL_UDP_FULLCONE_PORT);
 
     while (running)
     {
         fd_set fds; FD_ZERO(&fds); FD_SET(fullcone_socket, &fds);
+        if (fullcone_socket6 != INVALID_SOCKET) FD_SET(fullcone_socket6, &fds);
         struct timeval tv = {1, 0};
         int sel = select(0, &fds, NULL, NULL, &tv);
 
         ULONGLONG now = GetTickCount64();
         if (now - last_sweep >= 5000) { last_sweep = now; fullcone_sweep(now); }
 
-        if (sel <= 0 || !FD_ISSET(fullcone_socket, &fds)) continue;
+        if (sel <= 0) continue;
 
-        from_len = sizeof(from);
-        int len = recvfrom(fullcone_socket, (char*)buf, sizeof(buf), 0, (struct sockaddr*)&from, &from_len);
-        if (len == SOCKET_ERROR || len < 10) continue;   // header always present (built by encapsulation)
+        if (FD_ISSET(fullcone_socket, &fds))
+        {
+            from_len = sizeof(from);
+            int len = recvfrom(fullcone_socket, (char*)buf, sizeof(buf), 0, (struct sockaddr*)&from, &from_len);
+            if (len != SOCKET_ERROR && len >= 10)
+                fullcone_dispatch_v4(buf, len, ntohs(from.sin_port));
+        }
 
-        fullcone_dispatch_v4(buf, len, ntohs(from.sin_port));
+        if (fullcone_socket6 != INVALID_SOCKET && FD_ISSET(fullcone_socket6, &fds))
+        {
+            struct sockaddr_in6 from6; int from6_len = sizeof(from6);
+            int len = recvfrom(fullcone_socket6, (char*)buf, sizeof(buf), 0, (struct sockaddr*)&from6, &from6_len);
+            if (len != SOCKET_ERROR && len >= 10)
+                fullcone_dispatch_v6(buf, len, ntohs(from6.sin6_port));
+        }
     }
 
     // Shutdown: destroy every session (joins workers/readers, frees).
@@ -3733,7 +3938,8 @@ static DWORD WINAPI udp_fullcone_relay_server(LPVOID arg)
         while (g_fullcone_sessions[h] != NULL)
             fullcone_destroy_session(g_fullcone_sessions[h]);
     g_fullcone_session_count = 0;
-    if (fullcone_socket != INVALID_SOCKET) { closesocket(fullcone_socket); fullcone_socket = INVALID_SOCKET; }
+    if (fullcone_socket  != INVALID_SOCKET) { closesocket(fullcone_socket);  fullcone_socket  = INVALID_SOCKET; }
+    if (fullcone_socket6 != INVALID_SOCKET) { closesocket(fullcone_socket6); fullcone_socket6 = INVALID_SOCKET; }
     return 0;
 }
 
@@ -4406,6 +4612,26 @@ static BOOL get_connection_client(UINT16 src_port, UINT32 *out_src_ip, UINT32 *o
     while (conn != NULL) {
         if (conn->src_port == src_port && !conn->is_ipv6) {
             if (out_src_ip) *out_src_ip = conn->src_ip;
+            if (out_proxy_config_id) *out_proxy_config_id = conn->proxy_config_id;
+            InterlockedExchange64((LONGLONG volatile*)&conn->last_activity, (LONGLONG)GetTickCount64());
+            found = TRUE;
+            break;
+        }
+        conn = conn->next;
+    }
+    ReleaseSRWLockShared(&lock);
+    return found;
+}
+
+// IPv6 variant of get_connection_client: fills the raw v6 client address.
+static BOOL get_connection_client_v6(UINT16 src_port, UINT8 out_src_ip6[16], UINT32 *out_proxy_config_id)
+{
+    BOOL found = FALSE;
+    AcquireSRWLockShared(&lock);
+    CONNECTION_INFO *conn = connection_hash_table[src_port % CONNECTION_HASH_SIZE];
+    while (conn != NULL) {
+        if (conn->src_port == src_port && conn->is_ipv6) {
+            if (out_src_ip6) memcpy(out_src_ip6, conn->src_ip6, 16);
             if (out_proxy_config_id) *out_proxy_config_id = conn->proxy_config_id;
             InterlockedExchange64((LONGLONG volatile*)&conn->last_activity, (LONGLONG)GetTickCount64());
             found = TRUE;
