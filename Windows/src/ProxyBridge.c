@@ -45,6 +45,7 @@ typedef struct PROCESS_RULE {
     RuleAction action;
     UINT32 proxy_config_id;  // Which proxy config to route this rule through (0 = first available)
     BOOL enabled;
+    BOOL full_cone;         // Full Cone UDP mode (SOCKS5 UDP ASSOCIATE per client socket)
     struct PROCESS_RULE *next;
 } PROCESS_RULE;
 
@@ -368,10 +369,10 @@ static DWORD get_process_id_from_connection_v6(const UINT8 src_ip6[16], UINT16 s
 static DWORD get_process_id_from_udp_connection(UINT32 src_ip, UINT16 src_port);
 static DWORD get_process_id_from_udp_connection_v6(const UINT8 src_ip6[16], UINT16 src_port);
 static BOOL get_process_name_from_pid(DWORD pid, char *name, DWORD name_size);
-static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id);
-static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id);
-static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id);
-static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id);
+static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
+static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
+static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
+static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id, BOOL *out_full_cone);
 static void add_connection(UINT16 src_port, UINT32 src_ip, UINT32 dest_ip, UINT16 dest_port, UINT32 proxy_config_id);
 static void add_connection_v6(UINT16 src_port, const UINT8 src_ip6[16], const UINT8 dest_ip6[16], UINT16 dest_port, UINT32 proxy_config_id);
 static BOOL get_connection_full_v6(UINT16 src_port, UINT8 dest_ip6[16], UINT16 *dest_port, UINT32 *proxy_config_id);
@@ -479,7 +480,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     RuleAction action6u;
                     DWORD pid6u = 0;
                     UINT32 pcid6u = 0;
-                    action6u = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, TRUE, &pid6u, &pcid6u);
+                    action6u = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, TRUE, &pid6u, &pcid6u, NULL);
 
                     if (action6u == RULE_ACTION_PROXY && !g_localhost_via_proxy)
                     {
@@ -649,7 +650,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                 RuleAction action6;
                 DWORD pid6 = 0;
                 UINT32 proxy_config_id6 = 0;
-                action6 = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, FALSE, &pid6, &proxy_config_id6);
+                action6 = check_process_rule_v6((const UINT8*)ipv6_header->SrcAddr, sp, (const UINT8*)ipv6_header->DstAddr, dp, FALSE, &pid6, &proxy_config_id6, NULL);
 
                 // ::1 IPv6 loopback — use  same "Localhost via Proxy" toggle as IPv4 127.
                 if (action6 == RULE_ACTION_PROXY && !g_localhost_via_proxy)
@@ -820,7 +821,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     DWORD pid = 0;
                     UINT32 proxy_config_id = 0;
 
-                    action = check_process_rule(src_ip, src_port, dest_ip, dest_port, TRUE, &pid, &proxy_config_id);
+                    action = check_process_rule(src_ip, src_port, dest_ip, dest_port, TRUE, &pid, &proxy_config_id, NULL);
 
                     // override PROXY to DIRECT if localhost proxy is disabled and destination is localhost
                     BYTE dest_first_octet = (dest_ip >> 0) & 0xFF;
@@ -1034,7 +1035,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                 DWORD pid = 0;
                 UINT32 proxy_config_id = 0;
 
-                action = check_process_rule(src_ip, src_port, orig_dest_ip, orig_dest_port, FALSE, &pid, &proxy_config_id);
+                action = check_process_rule(src_ip, src_port, orig_dest_ip, orig_dest_port, FALSE, &pid, &proxy_config_id, NULL);
 
                 BYTE orig_dest_first_octet = (orig_dest_ip >> 0) & 0xFF;
                 if (action == RULE_ACTION_PROXY && !g_localhost_via_proxy && orig_dest_first_octet == 127)
@@ -1398,10 +1399,12 @@ static BOOL is_ipv6_multicast_or_linklocal(const UINT8 ip6[16])
     return FALSE;
 }
 
-static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id)
+static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone)
 {
     DWORD pid;
     char process_name[MAX_PROCESS_NAME];
+
+    if (out_full_cone != NULL) *out_full_cone = FALSE;
 
     pid = is_udp ? get_process_id_from_udp_connection_v6(src_ip6, src_port)
                  : get_process_id_from_connection_v6(src_ip6, src_port);
@@ -1412,7 +1415,7 @@ static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port
         return RULE_ACTION_DIRECT;
 
     UINT32 proxy_config_id = 0;
-    RuleAction action = match_rule_v6(process_name, dest_ip6, dest_port, is_udp, &proxy_config_id);
+    RuleAction action = match_rule_v6(process_name, dest_ip6, dest_port, is_udp, &proxy_config_id, out_full_cone);
 
     if (action == RULE_ACTION_PROXY)
     {
@@ -1816,10 +1819,12 @@ static BOOL is_broadcast_or_multicast(UINT32 ip)
 
 // Unified rule matching function for both TCP and UDP
 // Matches rules by process name, IP, port, and protocol
-static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id)
+static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id, BOOL *out_full_cone)
 {
     PROCESS_RULE *rule = rules_list;
     PROCESS_RULE *wildcard_rule = NULL;  // Save fully wildcard rule for last
+
+    if (out_full_cone != NULL) *out_full_cone = FALSE;
 
     while (rule != NULL)
     {
@@ -1862,6 +1867,7 @@ static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 de
                 {
                     // Matched! Return this rule's action
                     if (out_proxy_config_id != NULL) *out_proxy_config_id = rule->proxy_config_id;
+                    if (out_full_cone != NULL) *out_full_cone = rule->full_cone;
                     return rule->action;
                 }
                 // Didn't match, continue
@@ -1887,6 +1893,7 @@ static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 de
             {
                 // All filters matched! Return this rule's action
                 if (out_proxy_config_id != NULL) *out_proxy_config_id = rule->proxy_config_id;
+                if (out_full_cone != NULL) *out_full_cone = rule->full_cone;
                 return rule->action;
             }
         }
@@ -1898,6 +1905,7 @@ static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 de
     if (wildcard_rule != NULL)
     {
         if (out_proxy_config_id != NULL) *out_proxy_config_id = wildcard_rule->proxy_config_id;
+        if (out_full_cone != NULL) *out_full_cone = wildcard_rule->full_cone;
         return wildcard_rule->action;
     }
 
@@ -1909,10 +1917,12 @@ static RuleAction match_rule(const char *process_name, UINT32 dest_ip, UINT16 de
 // IPv6 variant of match_rule — uses match_ip_list_v6 for host patterns.
 // Supports exact addresses ("::1"), CIDR ("2001:db8::/32"), and wildcards ("*").
 // IPv4-format patterns in target_hosts are silently skipped for IPv6 traffic.
-static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id)
+static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[16], UINT16 dest_port, BOOL is_udp, UINT32 *out_proxy_config_id, BOOL *out_full_cone)
 {
     PROCESS_RULE *rule = rules_list;
     PROCESS_RULE *wildcard_rule = NULL;
+
+    if (out_full_cone != NULL) *out_full_cone = FALSE;
 
     while (rule != NULL)
     {
@@ -1941,6 +1951,7 @@ static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[1
                     match_port_list(rule->target_ports, dest_port))
                 {
                     if (out_proxy_config_id != NULL) *out_proxy_config_id = rule->proxy_config_id;
+                    if (out_full_cone != NULL) *out_full_cone = rule->full_cone;
                     return rule->action;
                 }
                 rule = rule->next;
@@ -1959,6 +1970,7 @@ static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[1
                 match_port_list(rule->target_ports, dest_port))
             {
                 if (out_proxy_config_id != NULL) *out_proxy_config_id = rule->proxy_config_id;
+                if (out_full_cone != NULL) *out_full_cone = rule->full_cone;
                 return rule->action;
             }
         }
@@ -1969,6 +1981,7 @@ static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[1
     if (wildcard_rule != NULL)
     {
         if (out_proxy_config_id != NULL) *out_proxy_config_id = wildcard_rule->proxy_config_id;
+        if (out_full_cone != NULL) *out_full_cone = wildcard_rule->full_cone;
         return wildcard_rule->action;
     }
 
@@ -1976,10 +1989,12 @@ static RuleAction match_rule_v6(const char *process_name, const UINT8 dest_ip6[1
     return RULE_ACTION_DIRECT;
 }
 
-static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id)
+static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest_ip, UINT16 dest_port, BOOL is_udp, DWORD *out_pid, UINT32 *out_proxy_config_id, BOOL *out_full_cone)
 {
     DWORD pid;
     char process_name[MAX_PROCESS_NAME];
+
+    if (out_full_cone != NULL) *out_full_cone = FALSE;
 
     pid = is_udp ? get_process_id_from_udp_connection(src_ip, src_port) : get_process_id_from_connection(src_ip, src_port);
     if (pid == 0 && is_udp)
@@ -2001,7 +2016,7 @@ static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest
 
     // Use unified rule matching function
     UINT32 proxy_config_id = 0;
-    RuleAction action = match_rule(process_name, dest_ip, dest_port, is_udp, &proxy_config_id);
+    RuleAction action = match_rule(process_name, dest_ip, dest_port, is_udp, &proxy_config_id, out_full_cone);
 
     // Additional checks for proxy configuration
     if (action == RULE_ACTION_PROXY)
@@ -3985,6 +4000,7 @@ PROXYBRIDGE_API UINT32 ProxyBridge_AddRule(const char* process_name, const char*
     strncpy_s(rule->process_name, MAX_PROCESS_NAME, process_name, _TRUNCATE);
     rule->protocol = protocol;
     rule->proxy_config_id = proxy_config_id;
+    rule->full_cone = FALSE;  // malloc'ed struct - explicit init required
 
     if (target_hosts != NULL && target_hosts[0] != '\0')
     {
@@ -4092,6 +4108,25 @@ PROXYBRIDGE_API BOOL ProxyBridge_DisableRule(UINT32 rule_id)
             rule->enabled = FALSE;
             update_has_active_rules();  // Phase 1: Update fast-path flag
             log_message("Disabled rule ID: %u", rule_id);
+            return TRUE;
+        }
+        rule = rule->next;
+    }
+    return FALSE;
+}
+
+PROXYBRIDGE_API BOOL ProxyBridge_SetRuleFullCone(UINT32 rule_id, BOOL enable)
+{
+    if (rule_id == 0)
+        return FALSE;
+
+    PROCESS_RULE *rule = rules_list;
+    while (rule != NULL)
+    {
+        if (rule->rule_id == rule_id)
+        {
+            rule->full_cone = enable;
+            log_message("Rule ID %u: Full Cone UDP %s", rule_id, enable ? "enabled" : "disabled");
             return TRUE;
         }
         rule = rule->next;

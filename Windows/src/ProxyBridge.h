@@ -48,6 +48,7 @@ PROXYBRIDGE_API BOOL ProxyBridge_EnableRule(UINT32 rule_id);
 PROXYBRIDGE_API BOOL ProxyBridge_DisableRule(UINT32 rule_id);
 PROXYBRIDGE_API BOOL ProxyBridge_DeleteRule(UINT32 rule_id);
 PROXYBRIDGE_API BOOL ProxyBridge_EditRule(UINT32 rule_id, const char* process_name, const char* target_hosts, const char* target_ports, RuleProtocol protocol, RuleAction action, UINT32 proxy_config_id);
+PROXYBRIDGE_API BOOL ProxyBridge_SetRuleFullCone(UINT32 rule_id, BOOL enable);  // Full Cone UDP mode for a rule (takes effect only for SOCKS5 UDP PROXY rules)
 PROXYBRIDGE_API BOOL ProxyBridge_MoveRuleToPosition(UINT32 rule_id, UINT32 new_position);  // Move rule to specific position (1=first, 2=second, etc)
 PROXYBRIDGE_API UINT32 ProxyBridge_GetRulePosition(UINT32 rule_id);  // Get current position of rule in list (1-based)
 PROXYBRIDGE_API void ProxyBridge_SetLocalhostViaProxy(BOOL enable);
