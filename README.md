@@ -34,11 +34,13 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
 - **SOCKS5 & HTTP proxy support**, full **IPv4/IPv6**
 - **Kernel-level interception** via WinDivert
 - **Rules engine** — per-process, per-host, per-port, TCP/UDP, wildcards, DNS snooping
+- **Full Cone UDP (game mode)** — per-rule opt-in: a dedicated SOCKS5 UDP ASSOCIATE per game socket with in-band SOCKS5 headers, so replies from any peer reach the right socket. Fixes matchmaking/P2P (e.g. Mortal Kombat 1) that hang under the default single-slot UDP relay. SOCKS5 rules only; full IPv4/IPv6
 - **Log filters** with include/exclude and auto-clear
 
 ### XRay Reality
 - **Start/stop xray-core** from the GUI without leaving the app
 - **VLESS+REALITY** protocol with SOCKS5 + HTTP inbounds
+- **XUDP mux for Full Cone UDP** — all UDP flows share a single public source port on the server (needs xray-core ≥ 1.8); UDP-443 (QUIC/HTTP3) handling is selectable: allow (default) / skip / reject
 - **Exposed as a managed proxy config** (`127.0.0.1:<local port>`) — target it from the rules like any proxy
 - **Import from `vless://` URL** — paste a share link to auto-fill all settings
 - **Auto-download xray-core** — if the binary is not found, the app offers to download it from GitHub Releases
@@ -61,11 +63,13 @@ This fork extends the original [ProxyBridge](https://github.com/InterceptSuite/P
 - **Поддержка SOCKS5 и HTTP прокси**, полный **IPv4/IPv6**
 - **Перехват на уровне ядра** через WinDivert
 - **Система правил** — по процессу, хосту, порту, протоколу TCP/UDP, wildcard, DNS-сноупинг
+- **Full Cone UDP (игровой режим)** — включается на правиле: отдельный SOCKS5 UDP ASSOCIATE на каждый игровой сокет с in-band SOCKS5-заголовками, поэтому ответы от любого пира доходят до нужного сокета. Чинит матчмейкинг/P2P (напр. Mortal Kombat 1), которые зависали на дефолтном single-slot UDP-релее. Только для SOCKS5-правил; полный IPv4/IPv6
 - **Фильтры логов** с include/exclude и автоочисткой
 
 ### XRay Reality
 - **Запуск/остановка xray-core** прямо из интерфейса
 - Протокол **VLESS+REALITY** с SOCKS5 и HTTP inbound
+- **XUDP mux для Full Cone UDP** — все UDP-потоки используют один публичный порт на сервере (нужен xray-core ≥ 1.8); обработка UDP-443 (QUIC/HTTP3) выбирается: allow (по умолчанию) / skip / reject
 - **Представлен как управляемый прокси-конфиг** (`127.0.0.1:<локальный порт>`) — нацеливайте на него правила как на обычный прокси
 - **Импорт из ссылки `vless://`** — вставьте share-ссылку для автозаполнения настроек
 - **Автоматическая загрузка xray-core** — если бинарный файл не найден, приложение предложит скачать его с GitHub Releases
