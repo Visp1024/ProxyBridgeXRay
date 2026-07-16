@@ -13,12 +13,19 @@
 #pragma comment(lib, "iphlpapi.lib")
 #pragma comment(lib, "ws2_32.lib")
 
+// MSVC keyword; MinGW's own definition ("extern __inline__ ...") clashes with
+// `static __forceinline`, so replace it with one that composes with static.
+#if !defined(_MSC_VER)
+#undef __forceinline
+#define __forceinline __attribute__((always_inline)) inline
+#endif
+
 #define MAXBUF 0xFFFF
 #define LOCAL_PROXY_PORT 34010
 #define LOCAL_UDP_RELAY_PORT 34011  // its running UDP port still make sure to not run on same port as TCP, opening same port and tcp and udp cause issue and handling port at relay server response injection
 #define LOCAL_UDP_FULLCONE_PORT 34012  // Full Cone UDP relay: SOCKS5-encapsulated datagrams, one ASSOCIATE per client socket
 #define MAX_PROCESS_NAME 1024
-#define VERSION "4.1.0"
+#define VERSION "4.1.1"
 #define PID_CACHE_SIZE 1024
 #define PID_CACHE_TTL_MS 30000
 // Single packet-processor thread eliminates TCP packet reordering.
@@ -344,6 +351,7 @@ static int send_all(SOCKET sock, const char *buf, int len)
 static UINT32 parse_ipv4(const char *ip);
 static UINT32 resolve_hostname(const char *hostname);
 static PROXY_CONFIG* find_proxy_config(UINT32 config_id);
+static PROXY_CONFIG* find_udp_proxy_config(UINT32 config_id);
 static BOOL any_socks5_config(void);
 static int socks5_connect(SOCKET s, UINT32 dest_ip, UINT16 dest_port, const PROXY_CONFIG *cfg);
 static int socks5_connect_v6(SOCKET s, const UINT8 dest_ip6[16], UINT16 dest_port, const PROXY_CONFIG *cfg);
@@ -605,7 +613,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                                 char dstr[64];
                                 inet_ntop(AF_INET6, ipv6_header->DstAddr, dstr, sizeof(dstr));
                                 char pinfo[128];
-                                if (action6u==RULE_ACTION_PROXY){PROXY_CONFIG*pc=find_proxy_config(pcid6u);if(pc)snprintf(pinfo,sizeof(pinfo),"Proxy %s://%s:%d (UDP)",pc->type==PROXY_TYPE_HTTP?"HTTP":"SOCKS5",pc->host,pc->port);else snprintf(pinfo,sizeof(pinfo),"Proxy (UDP)");}
+                                if (action6u==RULE_ACTION_PROXY){PROXY_CONFIG*pc=find_udp_proxy_config(pcid6u);if(pc)snprintf(pinfo,sizeof(pinfo),"Proxy %s://%s:%d (UDP)",pc->type==PROXY_TYPE_HTTP?"HTTP":"SOCKS5",pc->host,pc->port);else snprintf(pinfo,sizeof(pinfo),"Proxy (UDP)");}
                                 else if(action6u==RULE_ACTION_DIRECT) snprintf(pinfo,sizeof(pinfo),"Direct (UDP)");
                                 else snprintf(pinfo,sizeof(pinfo),"Blocked (UDP)");
                                 g_connection_callback(extract_filename(pname),pid6u,dstr,dp,pinfo);
@@ -618,7 +626,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
 
                     if (action6u == RULE_ACTION_PROXY)
                     {
-                        PROXY_CONFIG *pc6u = find_proxy_config(pcid6u);
+                        PROXY_CONFIG *pc6u = find_udp_proxy_config(pcid6u);
                         if (pc6u == NULL || pc6u->type != PROXY_TYPE_SOCKS5)
                         {
                             // HTTP proxy can't relay UDP — drop
@@ -999,7 +1007,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                                 char proxy_info[128];
                                 if (action == RULE_ACTION_PROXY)
                                 {
-                                    PROXY_CONFIG *pcfg = find_proxy_config(proxy_config_id);
+                                    PROXY_CONFIG *pcfg = find_udp_proxy_config(proxy_config_id);
                                     if (pcfg != NULL)
                                         snprintf(proxy_info, sizeof(proxy_info), "Proxy %s://%s:%d (UDP)",
                                             pcfg->type == PROXY_TYPE_HTTP ? "HTTP" : "SOCKS5",
@@ -1036,7 +1044,7 @@ static DWORD WINAPI packet_processor(LPVOID arg)
                     {
                         // Full Cone UDP takes effect only for SOCKS5 proxies; otherwise the
                         // legacy shared relay (34011) is used exactly as before.
-                        PROXY_CONFIG *fc_cfg = rule_full_cone ? find_proxy_config(proxy_config_id) : NULL;
+                        PROXY_CONFIG *fc_cfg = rule_full_cone ? find_udp_proxy_config(proxy_config_id) : NULL;
                         BOOL use_fullcone = (fc_cfg != NULL && fc_cfg->type == PROXY_TYPE_SOCKS5);
 
                         add_connection(src_port, src_ip, dest_ip, dest_port, proxy_config_id, use_fullcone);
@@ -1578,7 +1586,7 @@ static RuleAction check_process_rule_v6(const UINT8 src_ip6[16], UINT16 src_port
 
     if (action == RULE_ACTION_PROXY)
     {
-        PROXY_CONFIG *cfg = find_proxy_config(proxy_config_id);
+        PROXY_CONFIG *cfg = is_udp ? find_udp_proxy_config(proxy_config_id) : find_proxy_config(proxy_config_id);
         if (cfg == NULL || cfg->host[0] == '\0' || cfg->port == 0)
             return RULE_ACTION_DIRECT;
         if (is_udp && cfg->type == PROXY_TYPE_HTTP)
@@ -2180,7 +2188,7 @@ static RuleAction check_process_rule(UINT32 src_ip, UINT16 src_port, UINT32 dest
     // Additional checks for proxy configuration
     if (action == RULE_ACTION_PROXY)
     {
-        PROXY_CONFIG *cfg = find_proxy_config(proxy_config_id);
+        PROXY_CONFIG *cfg = is_udp ? find_udp_proxy_config(proxy_config_id) : find_proxy_config(proxy_config_id);
         if (cfg == NULL || cfg->host[0] == '\0' || cfg->port == 0)
             return RULE_ACTION_DIRECT;  // No proxy configured
 
@@ -2207,6 +2215,26 @@ static PROXY_CONFIG* find_proxy_config(UINT32 config_id)
     // Fall back to first available config
     if (g_proxy_config_count > 0)
         return &g_proxy_configs[0];
+    return NULL;
+}
+
+// UDP variant: only SOCKS5 can relay UDP. An exact match is returned as-is
+// (the UDP paths drop + log a misconfigured HTTP choice), but an unset or
+// dangling id falls back to the first SOCKS5 config — falling back to
+// g_proxy_configs[0] like find_proxy_config() does could pick an HTTP config
+// and silently kill all UDP for the rule.
+static PROXY_CONFIG* find_udp_proxy_config(UINT32 config_id)
+{
+    for (int i = 0; i < g_proxy_config_count; i++)
+    {
+        if (g_proxy_configs[i].config_id == config_id)
+            return &g_proxy_configs[i];
+    }
+    for (int i = 0; i < g_proxy_config_count; i++)
+    {
+        if (g_proxy_configs[i].type == PROXY_TYPE_SOCKS5)
+            return &g_proxy_configs[i];
+    }
     return NULL;
 }
 
@@ -3181,7 +3209,7 @@ static DWORD WINAPI udp_relay_server(LPVOID arg)
                 if (get_connection(from_port, &dest_ip, &dest_port))
                 {
                     UINT32 proxy_config_id = get_connection_proxy_id(from_port);
-                    PROXY_CONFIG *cfg = find_proxy_config(proxy_config_id);
+                    PROXY_CONFIG *cfg = find_udp_proxy_config(proxy_config_id);
 
                     if (cfg == NULL || cfg->type != PROXY_TYPE_SOCKS5)
                     {
@@ -3372,7 +3400,7 @@ static DWORD WINAPI udp_relay_server(LPVOID arg)
 
                 if (get_connection_full_v6(from_port, dest_ip6, &dest_port, &proxy_config_id))
                 {
-                    PROXY_CONFIG *cfg = find_proxy_config(proxy_config_id);
+                    PROXY_CONFIG *cfg = find_udp_proxy_config(proxy_config_id);
                     if (cfg != NULL && cfg->type == PROXY_TYPE_SOCKS5)
                     {
                         if (!cfg->udp_connected) establish_udp_associate_for_config(cfg);
@@ -3490,7 +3518,7 @@ static void fullcone_ring_clear(FULLCONE_SESSION *s)
 static DWORD WINAPI fullcone_connect_worker(LPVOID arg)
 {
     FULLCONE_SESSION *s = (FULLCONE_SESSION *)arg;
-    PROXY_CONFIG *cfg = find_proxy_config(s->proxy_config_id);
+    PROXY_CONFIG *cfg = find_udp_proxy_config(s->proxy_config_id);
     SOCKET tcp_sock = INVALID_SOCKET, proxy_sock = INVALID_SOCKET;
     struct sockaddr_in relay_addr = {0};
     BOOL ok = FALSE;

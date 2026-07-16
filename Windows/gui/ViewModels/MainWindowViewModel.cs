@@ -152,11 +152,14 @@ public class MainWindowViewModel : ViewModelBase
 
             if (_proxyService.Start())
             {
+                var registeredConfigs = ProxyConfigs.Select(p => (p.Id, p.Type)).ToList();
                 foreach (var rule in ProxyRules)
                 {
-                    uint nativeProxyId = 0;
-                    if (rule.ProxyConfigId > 0)
-                        configIdMap.TryGetValue(rule.ProxyConfigId, out nativeProxyId);
+                    uint nativeProxyId = ProfileManager.ResolveRuleProxyConfigId(
+                        rule.ProxyConfigId, rule.FullConeUdp, rule.Action,
+                        configIdMap, registeredConfigs, out var warning);
+                    if (warning != null)
+                        QueueActivityLog($"WARNING: '{rule.ProcessName}' {warning}");
                     rule.ProxyConfigId = nativeProxyId;
 
                     uint ruleId = _proxyService.AddRule(
@@ -910,7 +913,8 @@ public class MainWindowViewModel : ViewModelBase
                 _xRayService.Stop();
                 IsXRayRunning = false;
                 XRayStatusText = "XRay: Stopped";
-                RemoveXRayProxyConfig();
+                // The managed proxy config stays registered so rules keep their
+                // binding; connections through it simply fail until XRay is back.
             }
             catch (Exception ex)
             {
@@ -932,7 +936,7 @@ public class MainWindowViewModel : ViewModelBase
                 {
                     IsXRayRunning = false;
                     XRayStatusText = "XRay: Stopped (crashed)";
-                    RemoveXRayProxyConfig();
+                    // Keep the managed proxy config registered (see StopXRayCommand).
                 }
             });
         };
@@ -946,16 +950,33 @@ public class MainWindowViewModel : ViewModelBase
     }
 
     // XRay is exposed to the routing core as a managed local SOCKS5 proxy config.
-    // Rules target it through the normal Proxy Rules UI.
+    // Rules target it through the normal Proxy Rules UI. The config stays
+    // registered while XRay is stopped: deleting it would strand every rule
+    // that references it, and a re-add would come back under a different id.
     private void EnsureXRayProxyConfig()
     {
         if (_proxyService == null) return;
         if (!ushort.TryParse(_xRayConfig.LocalPort, out var port)) return;
 
-        var existing = ProxyConfigs.FirstOrDefault(p =>
+        var managed = _xRayManagedConfigId > 0
+            ? ProxyConfigs.FirstOrDefault(p => p.Id == _xRayManagedConfigId)
+            : null;
+        managed ??= ProxyConfigs.FirstOrDefault(p =>
             p.Host == XRayConfigHost && p.Port == _xRayConfig.LocalPort &&
             string.Equals(p.Type, "SOCKS5", StringComparison.OrdinalIgnoreCase));
-        if (existing != null) { _xRayManagedConfigId = existing.Id; return; }
+
+        if (managed != null)
+        {
+            _xRayManagedConfigId = managed.Id;
+            if (managed.Port != _xRayConfig.LocalPort)
+            {
+                try { _proxyService.EditProxyConfig(managed.Id, managed.Type, managed.Host, port, managed.Username, managed.Password); }
+                catch (Exception ex) { QueueActivityLog($"XRay: could not update proxy config port ({ex.Message})"); }
+                managed.Port = _xRayConfig.LocalPort;
+                SaveCurrentProfileAsync();
+            }
+            return;
+        }
 
         try
         {
@@ -969,20 +990,6 @@ public class MainWindowViewModel : ViewModelBase
         {
             QueueActivityLog($"XRay: could not register proxy config with routing core ({ex.Message})");
         }
-    }
-
-    private void RemoveXRayProxyConfig()
-    {
-        if (_xRayManagedConfigId == 0) return;
-        var pc = ProxyConfigs.FirstOrDefault(p => p.Id == _xRayManagedConfigId);
-        if (pc != null)
-        {
-            ProxyConfigs.Remove(pc);
-            try { _proxyService?.DeleteProxyConfig(_xRayManagedConfigId); }
-            catch (Exception ex) { QueueActivityLog($"XRay: could not remove proxy config ({ex.Message})"); }
-            SaveCurrentProfileAsync();
-        }
-        _xRayManagedConfigId = 0;
     }
 
     private async Task TryAutoStartXRayAsync()
@@ -1403,13 +1410,16 @@ public class MainWindowViewModel : ViewModelBase
             });
         }
 
+        var registeredConfigs = ProxyConfigs.Select(p => (p.Id, p.Type)).ToList();
         foreach (var rc in profile.ProxyRules ?? new List<ProxyRuleConfig>())
         {
             if (string.IsNullOrWhiteSpace(rc.ProcessName)) continue;
 
-            uint nativeProxyId = 0;
-            if (rc.ProxyConfigId > 0)
-                configIdMap.TryGetValue(rc.ProxyConfigId, out nativeProxyId);
+            uint nativeProxyId = ProfileManager.ResolveRuleProxyConfigId(
+                rc.ProxyConfigId, rc.FullConeUdp, rc.Action,
+                configIdMap, registeredConfigs, out var warning);
+            if (warning != null)
+                QueueActivityLog($"WARNING: '{rc.ProcessName}' {warning}");
 
             var pcVm = nativeProxyId > 0 ? ProxyConfigs.FirstOrDefault(p => p.Id == nativeProxyId) : null;
             var rule = new ProxyRule
@@ -1421,6 +1431,7 @@ public class MainWindowViewModel : ViewModelBase
                 Action = ValidationHelper.DefaultIfEmpty(rc.Action, "PROXY"),
                 IsEnabled = rc.IsEnabled,
                 ProxyConfigId = nativeProxyId,
+                FullConeUdp = rc.FullConeUdp,
                 ProxyConfigDisplay = pcVm?.DisplayName ?? ""
             };
 

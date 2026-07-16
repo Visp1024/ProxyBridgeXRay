@@ -150,8 +150,62 @@ public static class ProfileManager
         EnsureDirectory();
         profile.Name = name;
         profile.Version = ProfileVersion;
+        NormalizeIds(profile);
         var json = JsonSerializer.Serialize(profile, ProxyProfileJsonContext.Default.ProxyProfile);
         return AtomicFileHelper.AtomicWrite(GetProfilePath(name), json);
+    }
+
+    // At runtime configs carry session-native ids that change between runs; a
+    // profile must never persist them, or rules end up pointing at nothing on
+    // the next load. Renumber configs 1..N and remap rules to follow; a rule
+    // whose config is gone gets 0 so the breakage is visible instead of
+    // resolving to an arbitrary config after renumbering.
+    public static void NormalizeIds(ProxyProfile profile)
+    {
+        var idMap = new Dictionary<uint, uint>();
+        uint nextId = 1;
+        foreach (var pc in profile.ProxyConfigs)
+        {
+            idMap[pc.Id] = nextId;
+            pc.Id = nextId;
+            nextId++;
+        }
+
+        foreach (var rule in profile.ProxyRules)
+            rule.ProxyConfigId = idMap.TryGetValue(rule.ProxyConfigId, out var mapped) ? mapped : 0;
+    }
+
+    // Maps a rule's saved ProxyConfigId to the current session id via idMap.
+    // A reference that no longer resolves is repaired when there is an
+    // unambiguous target (full cone requires SOCKS5, so a single SOCKS5 config
+    // qualifies; otherwise a single config overall); anything else returns 0.
+    // Every repair or failure is described in `warning` for the activity log.
+    public static uint ResolveRuleProxyConfigId(
+        uint savedId, bool fullConeUdp, string action,
+        IReadOnlyDictionary<uint, uint> idMap,
+        IReadOnlyCollection<(uint Id, string Type)> configs,
+        out string? warning)
+    {
+        warning = null;
+        if (action != "PROXY")
+            return 0;
+
+        if (savedId > 0 && idMap.TryGetValue(savedId, out var mapped))
+            return mapped;
+
+        var candidates = fullConeUdp
+            ? configs.Where(c => string.Equals(c.Type, "SOCKS5", StringComparison.OrdinalIgnoreCase)).ToList()
+            : configs.ToList();
+
+        if (candidates.Count == 1)
+        {
+            warning = $"rule referenced a missing proxy config (id {savedId}) — re-linked to the only "
+                    + (fullConeUdp ? "SOCKS5 config" : "config");
+            return candidates[0].Id;
+        }
+
+        warning = $"rule references a missing proxy config (id {savedId}) and no unambiguous replacement exists — re-select the proxy for this rule";
+        return 0;
     }
 
     public static bool DeleteProfile(string name)

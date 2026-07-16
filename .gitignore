@@ -12,6 +12,8 @@ Windows/gui/bin/**
 Windows/gui/obj/**
 Windows/cli/bin/**
 Windows/cli/obj/**
+Windows/tests/**/bin/**
+Windows/tests/**/obj/**
 .vscode/**
 Windows/output/ProxyBridge_CLI.pdb
 
