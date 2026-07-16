@@ -7,9 +7,9 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AssemblyName>ProxyBridgeXRay</AssemblyName>
     <RootNamespace>ProxyBridge.GUI</RootNamespace>
-    <Version>4.1.0</Version>
-    <AssemblyVersion>4.1.0</AssemblyVersion>
-    <FileVersion>4.1.0</FileVersion>
+    <Version>4.1.1</Version>
+    <AssemblyVersion>4.1.1</AssemblyVersion>
+    <FileVersion>4.1.1</FileVersion>
     <ApplicationIcon>Assets\logo.ico</ApplicationIcon>
     <Company>Visp1024</Company>
     <Product>ProxyBridge XRay</Product>
